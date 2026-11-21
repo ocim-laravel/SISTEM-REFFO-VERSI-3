@@ -34,11 +34,11 @@
                             <img src="{{ $item->previewUrl() }}" alt="Preview desain {{ $item->product?->nama_produk }}"
                                 class="h-full w-full object-contain">
                         @else
-                            <div class="text-center text-slate-400">
+                            <div class="text-center text-slate-600">
                                 <svg class="mx-auto h-10 w-10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5v10.5H3.75V6.75Zm0 0 3-3h10.5l3 3M8.25 12.75l2.25 2.25 5.25-5.25" />
                                 </svg>
-                                <p class="mt-2 text-xs">Preview ACC belum tersedia</p>
+                                <p class="mt-2 text-xs font-semibold">Preview ACC belum tersedia</p>
                             </div>
                         @endif
                     </div>
@@ -64,11 +64,11 @@
 
                         <div class="mt-3 grid grid-cols-2 gap-3">
                             <div class="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Qty</p>
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Qty</p>
                                 <p class="mt-1 text-2xl font-black text-slate-900">{{ $item->qty }}</p>
                             </div>
                             <div class="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Ukuran</p>
+                                <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Ukuran</p>
                                 <p class="mt-1 text-sm font-bold text-slate-800">
                                     @if ($item->isMeteran())
                                         {{ number_format((float) $item->lebar_m, 2, ',', '.') }} x {{ number_format((float) $item->tinggi_m, 2, ',', '.') }} m

@@ -90,33 +90,50 @@
                         @endif
                     </div>
 
-                    <div class="mt-4 flex flex-wrap gap-2">
-                        @if ($item->file_cetak_tiff)
-                            <a href="{{ route('operator.items.tiff', $item) }}"
-                                class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-100">
-                                Unduh File .TIFF
-                            </a>
-                        @else
-                            <span class="rounded-lg bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-600">File TIFF belum tersedia</span>
-                        @endif
+                    <div class="mt-auto pt-4">
+                        <div class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 ring-1 ring-slate-100">
+                            @if ($item->file_cetak_tiff)
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <svg class="h-4 w-4 shrink-0 text-indigo-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H8.25a2.25 2.25 0 0 0-2.25 2.25v13.5a2.25 2.25 0 0 0 2.25 2.25h7.5a2.25 2.25 0 0 0 2.25-2.25V14.25Z" />
+                                    </svg>
+                                    <span class="truncate font-mono text-[11px] text-slate-600" title="{{ basename((string) $item->file_cetak_tiff) }}">
+                                        {{ basename((string) $item->file_cetak_tiff) }}
+                                    </span>
+                                </div>
+                                <a href="{{ route('operator.items.tiff', $item) }}"
+                                    class="shrink-0 rounded-lg border border-indigo-200 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-50">
+                                    Unduh
+                                </a>
+                            @else
+                                <span class="text-xs font-semibold text-rose-600">File TIFF belum tersedia</span>
+                            @endif
+                        </div>
 
-                        @if ($item->status_produksi === \App\Models\OrderItem::STATUS_ANTREAN_CETAK)
-                            <form method="POST" action="{{ route('operator.items.mulai', $item) }}">
-                                @csrf
-                                <button type="submit" class="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Mulai Cetak</button>
-                            </form>
-                        @endif
+                        <div class="mt-3 grid grid-cols-2 gap-2 border-t border-slate-100 pt-3">
+                            @if ($item->status_produksi === \App\Models\OrderItem::STATUS_ANTREAN_CETAK)
+                                <form method="POST" action="{{ route('operator.items.mulai', $item) }}">
+                                    @csrf
+                                    <button type="submit" class="h-10 w-full rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Mulai Cetak</button>
+                                </form>
+                            @endif
 
-                        <button type="button"
-                            @click="active = items[{{ $item->id }}]; mode = 'selesai'; sumber = 'roll'"
-                            class="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">
-                            Selesai Cetak
-                        </button>
-                        <button type="button"
-                            @click="active = items[{{ $item->id }}]; mode = 'gagal'"
-                            class="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100">
-                            Lapor Gagal Cetak
-                        </button>
+                            @if ($item->file_cetak_tiff)
+                                <button type="button"
+                                    @click="active = items[{{ $item->id }}]; mode = 'selesai'; sumber = 'roll'"
+                                    class="h-10 rounded-lg bg-emerald-600 text-xs font-semibold text-white transition hover:bg-emerald-700">
+                                    Selesai Cetak
+                                </button>
+                            @else
+                                <span class="flex h-10 items-center justify-center rounded-lg bg-slate-100 text-xs font-semibold text-slate-500">Selesai Cetak terkunci</span>
+                            @endif
+
+                            <button type="button"
+                                @click="active = items[{{ $item->id }}]; mode = 'gagal'"
+                                class="col-span-2 h-10 rounded-lg border border-rose-200 bg-rose-50 text-xs font-semibold text-rose-700 transition hover:bg-rose-100">
+                                Lapor Gagal Cetak
+                            </button>
+                        </div>
                     </div>
                 </article>
             @empty
@@ -162,7 +179,7 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-slate-700" for="sumber_bahan">Sumber Bahan</label>
-                            <select id="sumber_bahan" name="sumber_bahan" x-model="sumber" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                            <select id="sumber_bahan" name="sumber_bahan" x-model="sumber" class="mt-1 w-full rounded-lg border border-slate-300 text-sm">
                                 <option value="roll">Roll Utama (material_rolls)</option>
                                 <option value="offcut">Stok Bahan Potongan (material_offcuts)</option>
                             </select>
@@ -170,7 +187,7 @@
 
                         <div x-show="sumber === 'roll'">
                             <label class="block text-xs font-semibold text-slate-700" for="material_roll_id">Roll Aktif</label>
-                            <select id="material_roll_id" name="material_roll_id" :required="sumber === 'roll'" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                            <select id="material_roll_id" name="material_roll_id" :required="sumber === 'roll'" class="mt-1 w-full rounded-lg border border-slate-300 text-sm">
                                 <template x-for="roll in active.rolls" :key="roll.id">
                                     <option :value="roll.id"
                                         :selected="active.rekomendasi && roll.jenis === active.rekomendasi"
@@ -182,7 +199,7 @@
 
                         <div x-show="sumber === 'offcut'">
                             <label class="block text-xs font-semibold text-slate-700" for="material_offcut_id">Stok Potongan Tersedia</label>
-                            <select id="material_offcut_id" name="material_offcut_id" :required="sumber === 'offcut'" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                            <select id="material_offcut_id" name="material_offcut_id" :required="sumber === 'offcut'" class="mt-1 w-full rounded-lg border border-slate-300 text-sm">
                                 <template x-for="offcut in active.offcuts" :key="offcut.id">
                                     <option :value="offcut.id"
                                         x-text="offcut.jenis + ' | ' + offcut.lebar.toFixed(2) + ' x ' + offcut.panjang.toFixed(2) + ' m (' + offcut.luas.toFixed(2) + ' m2)'"></option>
@@ -193,7 +210,7 @@
 
                         <div>
                             <label class="block text-xs font-semibold text-slate-700" for="orientasi_potong">Orientasi Potong</label>
-                            <select id="orientasi_potong" name="orientasi_potong" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                            <select id="orientasi_potong" name="orientasi_potong" class="mt-1 w-full rounded-lg border border-slate-300 text-sm">
                                 <option value="panjang">Tinggi kotor mengikuti panjang roll</option>
                                 <option value="lebar">Lebar kotor mengikuti panjang roll (diputar)</option>
                             </select>
@@ -229,7 +246,7 @@
                         @csrf
                         <div>
                             <label class="block text-xs font-semibold text-slate-700" for="gagal_roll">Roll Aktif</label>
-                            <select id="gagal_roll" name="material_roll_id" required class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                            <select id="gagal_roll" name="material_roll_id" required class="mt-1 w-full rounded-lg border border-slate-300 text-sm">
                                 <template x-for="roll in active.rolls" :key="roll.id">
                                     <option :value="roll.id"
                                         x-text="roll.kode + ' — ' + roll.jenis + ' | sisa ' + roll.sisa.toFixed(2) + ' m'"></option>
@@ -240,12 +257,12 @@
                         <div>
                             <label class="block text-xs font-semibold text-slate-700" for="panjang_rusak_m">Panjang Bahan Rusak (meter)</label>
                             <input id="panjang_rusak_m" type="number" name="panjang_rusak_m" step="0.01" min="0.01" required
-                                placeholder="0.00" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                                placeholder="0.00" class="mt-1 w-full rounded-lg border border-slate-300 text-sm">
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-slate-700" for="keterangan_gagal">Keterangan (opsional)</label>
                             <input id="keterangan_gagal" type="text" name="keterangan" maxlength="255"
-                                placeholder="Contoh: mesin tersendat" class="mt-1 w-full rounded-lg border-slate-300 text-sm">
+                                placeholder="Contoh: mesin tersendat" class="mt-1 w-full rounded-lg border border-slate-300 text-sm">
                         </div>
                         <p class="text-xs leading-5 text-slate-500">Luas rusak dicatat ke <span class="font-mono">gagal_cetak_m2</span> dan tidak mengubah tagihan pelanggan.</p>
                         <button type="submit" class="w-full rounded-lg bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-rose-700">

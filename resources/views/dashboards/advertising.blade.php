@@ -33,14 +33,14 @@
                 <form method="GET" action="{{ route('advertising.dashboard') }}" class="flex flex-wrap items-end gap-2">
                     <div>
                         <label class="block text-[11px] font-semibold text-slate-500" for="status">Filter Status</label>
-                        <select id="status" name="status" class="mt-1 rounded-lg border-slate-300 text-sm">
+                        <select id="status" name="status" class="mt-1 h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm shadow-sm focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20">
                             <option value="">Semua status</option>
                             @foreach ($statusOptions as $key => $label)
                                 <option value="{{ $key }}" @selected($status === $key)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </div>
-                    <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900">Terapkan</button>
+                    <button type="submit" class="h-10 rounded-lg bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:bg-emerald-800">Terapkan</button>
                 </form>
             </div>
 
@@ -48,6 +48,12 @@
                 @forelse ($spks as $spk)
                     @php
                         $berikutnya = $nextStatus[$spk->status_lapangan] ?? null;
+                        $statusClass = match ($spk->status_lapangan) {
+                            'antrean' => 'bg-slate-100 text-slate-700 ring-slate-200',
+                            'perakitan' => 'bg-sky-50 text-sky-700 ring-sky-100',
+                            'pemasangan' => 'bg-indigo-50 text-indigo-700 ring-indigo-100',
+                            default => 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+                        };
                     @endphp
                     <article class="rounded-2xl border border-slate-200 bg-slate-50/60 p-5 ring-1 ring-slate-100">
                         <div class="flex flex-wrap items-start justify-between gap-3">
@@ -58,24 +64,24 @@
                                     {{ $spk->order?->customer?->nama_pelanggan }} — {{ $spk->order?->customer?->instansi }}
                                 </p>
                             </div>
-                            <span class="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-100">
+                            <span class="shrink-0 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider ring-1 {{ $statusClass }}">
                                 {{ $spk->statusLapanganLabel() }}
                             </span>
                         </div>
 
                         <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-2">
                             <div class="rounded-xl bg-white p-3 ring-1 ring-slate-200">
-                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Ukuran Konstruksi</dt>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Ukuran Konstruksi</dt>
                                 <dd class="mt-1 font-semibold text-slate-800">{{ $spk->ukuran_konstruksi }}</dd>
                             </div>
                             <div class="rounded-xl bg-white p-3 ring-1 ring-slate-200">
-                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Lokasi Pasang</dt>
+                                <dt class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Lokasi Pasang</dt>
                                 <dd class="mt-1 font-semibold text-slate-800">{{ $spk->lokasi_pasang }}</dd>
                             </div>
                         </dl>
 
                         <div class="mt-3 rounded-xl bg-white p-3 ring-1 ring-slate-200">
-                            <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Catatan Teknis</p>
+                            <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Catatan Teknis</p>
                             <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600">
                                 {{ $spk->catatan_teknis ?: 'Tidak ada catatan teknis.' }}
                             </p>

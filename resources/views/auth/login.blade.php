@@ -198,6 +198,31 @@
                     </button>
                 </form>
 
+                @if (app()->environment('local'))
+                    <div class="mt-8 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                        <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Akun pengujian (klik untuk isi otomatis)</p>
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            @foreach ([
+                                ['Rina (Admin)', 'admin@printflow.test'],
+                                ['Budi (Desainer)', 'desainer@printflow.test'],
+                                ['Agus (Operator)', 'operator@printflow.test'],
+                                ['Dedi (Finishing)', 'finishing@printflow.test'],
+                                ['Eko (Advertising)', 'advertising@printflow.test'],
+                                ['Pak Hendra (Owner)', 'owner@printflow.test'],
+                            ] as [$label, $email])
+                                <button
+                                    type="button"
+                                    onclick="document.getElementById('email').value='{{ $email }}'; document.getElementById('password').value='password123';"
+                                    class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-[11px] font-medium text-slate-700 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                                >
+                                    {{ $label }}
+                                </button>
+                            @endforeach
+                        </div>
+                        <p class="mt-2 text-[10px] text-slate-400">Password semua akun: <span class="font-mono">password123</span></p>
+                    </div>
+                @endif
+
                 <p class="mt-8 text-center text-[11px] leading-5 text-slate-400">
                     &copy; {{ date('Y') }} {{ config('app.name') }}. Akses internal pegawai.<br>
                     Semua aktivitas dicatat untuk keamanan sistem.

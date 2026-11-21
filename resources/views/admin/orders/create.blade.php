@@ -64,7 +64,7 @@
                                 Nama Pelanggan / PIC <span class="text-rose-500">*</span>
                             </label>
                             <div class="relative">
-                                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                                <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
                                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-4.35-4.35m1.6-5.15a6.75 6.75 0 1 1-13.5 0 6.75 6.75 0 0 1 13.5 0Z" />
                                     </svg>
@@ -79,10 +79,10 @@
                                     autocomplete="off"
                                     required
                                     placeholder="Ketik nama pelanggan atau PIC…"
-                                    class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                    class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                                 >
                             </div>
-                            <p class="mt-1.5 text-[11px] leading-5 text-slate-400">Auto-complete aktif setelah 2 huruf. Nama/instansi yang cocok persis terisi otomatis; jika lebih dari satu, klik hasil.</p>
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Auto-complete aktif setelah 2 huruf. Nama/instansi yang cocok persis terisi otomatis; jika lebih dari satu, klik hasil.</p>
                         </div>
 
                         <div>
@@ -96,9 +96,9 @@
                                 @focus="searchCustomers('instansi')"
                                 autocomplete="off"
                                 placeholder="Order Pribadi"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                             >
-                            <p class="mt-1.5 text-[11px] leading-5 text-slate-400">Kosongkan bila pelanggan pribadi — otomatis menjadi “Order Pribadi”.</p>
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Kosongkan bila pelanggan pribadi — otomatis menjadi “Order Pribadi”.</p>
                         </div>
 
                         <div>
@@ -113,7 +113,7 @@
                                 @input="customerId = null"
                                 required
                                 placeholder="08xxxxxxxxxx"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                             >
                         </div>
 
@@ -134,7 +134,7 @@
                                 <option value="prioritas">Prioritas</option>
                                 <option value="pegawai">Pegawai</option>
                             </select>
-                            <p class="mt-1.5 text-[11px] leading-5 text-slate-400">Harga item otomatis mengikuti kategori ini.</p>
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Harga item otomatis mengikuti kategori ini.</p>
                         </div>
 
                         <div class="sm:col-span-2">
@@ -146,7 +146,7 @@
                                 @input="customerId = null"
                                 rows="2"
                                 placeholder="Alamat pelanggan (opsional)"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                             ></textarea>
                         </div>
                     </div>
@@ -208,6 +208,7 @@
                                         class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
                                         :class="productFor(item)?.kategori_produk === 'satuan' ? 'bg-sky-100 text-sky-700' : 'bg-indigo-100 text-indigo-700'"
                                         x-show="productFor(item)"
+                                        x-cloak
                                         x-text="productFor(item)?.kategori_produk"
                                     ></span>
                                 </div>
@@ -215,6 +216,7 @@
                                     type="button"
                                     @click="removeItem(index)"
                                     x-show="items.length > 1"
+                                    x-cloak
                                     class="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-rose-600 transition hover:bg-rose-50"
                                 >
                                     <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
@@ -372,7 +374,7 @@
                                     x-model="spk.jenis_pekerjaan"
                                     :required="spkEnabled"
                                     placeholder="Contoh: Rangka Baliho + Pemasangan"
-                                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                                 >
                             </div>
                             <div>
@@ -383,7 +385,7 @@
                                     x-model="spk.ukuran_konstruksi"
                                     :required="spkEnabled"
                                     placeholder="Contoh: 4 m x 2 m"
-                                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                                 >
                             </div>
                             <div class="sm:col-span-2">
@@ -394,7 +396,7 @@
                                     x-model="spk.lokasi_pasang"
                                     :required="spkEnabled"
                                     placeholder="Alamat / titik lokasi pemasangan"
-                                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                                 >
                             </div>
                             <div class="sm:col-span-2">
@@ -404,7 +406,7 @@
                                     x-model="spk.catatan_teknis"
                                     rows="2"
                                     placeholder="Kebutuhan bahan, alat, atau instruksi khusus tim lapangan (opsional)"
-                                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
                                 ></textarea>
                             </div>
                         </div>
@@ -413,13 +415,13 @@
                     {{-- Total --}}
                     <div class="flex flex-col gap-4 rounded-2xl bg-slate-900 p-5 text-white sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Total Tagihan Nota</p>
+                            <p class="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Total Tagihan Nota</p>
                             <p class="mt-1 text-2xl font-bold tracking-tight" x-text="money(orderTotal())"></p>
-                            <p class="mt-1 text-[11px] text-slate-400">Belum termasuk jasa advertising (selalu Rp 0 pada Fase 1).</p>
+                            <p class="mt-1 text-[11px] text-slate-500">Belum termasuk jasa advertising (selalu Rp 0 pada Fase 1).</p>
                         </div>
                         <div class="rounded-xl bg-white/10 px-4 py-3 text-xs text-slate-200 ring-1 ring-white/10">
                             <p><span x-text="items.length"></span> baris item · minimal 1 m² per baris meteran</p>
-                            <p class="mt-1 text-slate-400">Total dihitung otomatis mengikuti kategori pelanggan.</p>
+                            <p class="mt-1 text-slate-500">Total dihitung otomatis mengikuti kategori pelanggan.</p>
                         </div>
                     </div>
                 </div>
@@ -440,7 +442,7 @@
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Kondisi Desain <span class="text-rose-500">*</span></p>
                         <div class="grid gap-3 sm:grid-cols-2">
                             @foreach ($statusDesainOptions as $value => $label)
-                                <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 transition hover:border-indigo-200 hover:bg-indigo-50/40">
+                                <label class="group flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 transition hover:border-indigo-200 hover:bg-indigo-50/40 has-[:checked]:border-indigo-300 has-[:checked]:bg-indigo-50">
                                     <input
                                         type="radio"
                                         name="status_desain"
@@ -449,7 +451,7 @@
                                         required
                                         class="mt-0.5 h-4 w-4 border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                     >
-                                    <span class="min-w-0 text-sm font-medium text-slate-700">{{ $label }}</span>
+                                    <span class="min-w-0 text-sm font-medium text-slate-700 group-has-[:checked]:text-indigo-900">{{ $label }}</span>
                                 </label>
                             @endforeach
                         </div>
@@ -463,19 +465,47 @@
                                 name="catatan_desain"
                                 rows="3"
                                 placeholder="Teks, warna, ukuran, referensi, atau instruksi desain dari pelanggan…"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                             >{{ old('catatan_desain') }}</textarea>
                         </div>
 
-                        <div>
+                        <div x-data="imagePreview()" class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
                             <label for="lampiran_briefing" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Lampiran Briefing Desain</label>
                             <input
                                 type="file"
                                 id="lampiran_briefing"
                                 name="lampiran_briefing"
-                                class="block w-full cursor-pointer rounded-xl border border-slate-300 bg-white text-sm text-slate-500 shadow-sm file:mr-3 file:border-0 file:bg-slate-900 file:px-4 file:py-2.5 file:text-xs file:font-semibold file:text-white hover:file:bg-slate-800"
+                                x-ref="file"
+                                @change="pick($event)"
+                                accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp,.gif,.pdf,.tif,.tiff,.cdr,.psd,.ai,.zip,.rar"
+                                class="block w-full cursor-pointer rounded-xl border border-slate-300 bg-white p-2 text-sm text-slate-500 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-4 file:py-2.5 file:text-xs file:font-semibold file:text-white hover:file:bg-indigo-700"
                             >
-                            <p class="mt-1.5 text-[11px] leading-5 text-slate-400">Gambar, PDF, TIFF, CDR, PSD, AI, ZIP, atau RAR. Maksimal 20 MB. Disimpan di <span class="font-mono">media_sistem/briefing_desain</span>.</p>
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Gambar, PDF, TIFF, CDR, PSD, AI, ZIP, atau RAR. Maksimal 20 MB. Disimpan di <span class="font-mono">media_sistem/briefing_desain</span>.</p>
+
+                            <template x-if="url">
+                                <div class="mt-3 flex items-start gap-3 rounded-lg border border-indigo-100 bg-indigo-50/60 p-2.5">
+                                    <div class="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-white ring-1 ring-indigo-100">
+                                        <img :src="url" :alt="'Pratinjau ' + name" x-on:error="failed = true" x-show="!failed"
+                                            class="h-full w-full object-contain">
+                                        <div x-show="failed" x-cloak class="flex h-full items-center justify-center px-1 text-center text-[10px] leading-4 text-slate-500">
+                                            Pratinjau tidak didukung
+                                        </div>
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-[10px] font-semibold uppercase tracking-wider text-indigo-500">Pratinjau berkas</p>
+                                        <p class="mt-1 truncate text-xs font-semibold text-slate-700" x-text="name"></p>
+                                        <button type="button" @click="clear()" class="mt-1 text-[11px] font-semibold text-rose-600 hover:underline">Hapus pilihan</button>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <div x-show="name && !url" x-cloak class="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                                <svg class="h-4 w-4 shrink-0 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5A3.375 3.375 0 0 0 10.125 2.25H8.25a2.25 2.25 0 0 0-2.25 2.25v13.5a2.25 2.25 0 0 0 2.25 2.25h7.5a2.25 2.25 0 0 0 2.25-2.25V14.25Z" />
+                                </svg>
+                                <p class="min-w-0 flex-1 truncate text-xs text-slate-600" x-text="name"></p>
+                                <button type="button" @click="clear()" class="shrink-0 text-[11px] font-semibold text-rose-600 hover:underline">Hapus</button>
+                            </div>
                         </div>
 
                         <div>
