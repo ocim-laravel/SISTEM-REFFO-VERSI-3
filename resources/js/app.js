@@ -1,4 +1,5 @@
 import Alpine from 'alpinejs';
+import './echo';
 
 window.Alpine = Alpine;
 
@@ -50,6 +51,39 @@ Alpine.data('imagePreview', () => ({
 
     destroy() {
         this.reset();
+    },
+}));
+
+Alpine.data('topbarNotifications', (role) => ({
+    open: false,
+    items: [],
+    unreadCount: 0,
+
+    init() {
+        if (!window.Echo || !role) {
+            return;
+        }
+
+        window.Echo.private(`notifications.${role}`)
+            .listen('.order.status.changed', (payload) => this.push(payload))
+            .listen('.pelunasan.completed', (payload) => this.push(payload))
+            .listen('.serah-terima.completed', (payload) => this.push(payload));
+    },
+
+    push(payload) {
+        this.items.unshift({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            message: payload?.message ?? 'Ada pembaruan baru.',
+            time: new Date().toLocaleString('id-ID'),
+            read: false,
+        });
+        this.items = this.items.slice(0, 10);
+        this.unreadCount = Math.min(this.unreadCount + 1, 99);
+    },
+
+    markAllRead() {
+        this.items = this.items.map((item) => ({ ...item, read: true }));
+        this.unreadCount = 0;
     },
 }));
 

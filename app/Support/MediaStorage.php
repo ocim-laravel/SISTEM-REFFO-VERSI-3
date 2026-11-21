@@ -19,6 +19,10 @@ class MediaStorage
 
     public const FOLDER_FILE_MASTER_ARSIP = 'file_master_arsip';
 
+    public const FOLDER_BUKTI_PELUNASAN = 'bukti_pelunasan';
+
+    public const FOLDER_FOTO_SERAH_TERIMA = 'foto_serah_terima';
+
     /**
      * @var array<string, string>
      */
@@ -27,6 +31,8 @@ class MediaStorage
         self::FOLDER_PREVIEW_ACC => 'Preview ACC',
         self::FOLDER_FILE_CETAK_TIFF => 'File Cetak TIFF',
         self::FOLDER_FILE_MASTER_ARSIP => 'File Master Arsip',
+        self::FOLDER_BUKTI_PELUNASAN => 'Bukti Pelunasan',
+        self::FOLDER_FOTO_SERAH_TERIMA => 'Foto Serah Terima',
     ];
 
     public static function rootPath(): string

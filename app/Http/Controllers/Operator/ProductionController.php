@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Operator;
 
+use App\Events\OrderStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Operator\LaporGagalRequest;
 use App\Http\Requests\Operator\SelesaiCetakRequest;
@@ -10,7 +11,9 @@ use App\Models\MaterialOffcut;
 use App\Models\MaterialRoll;
 use App\Models\OrderItem;
 use App\Models\Product;
+use App\Models\User;
 use App\Support\MediaStorage;
+use App\Support\RiwayatSelesai;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +95,22 @@ class ProductionController extends Controller
         ]);
     }
 
+    /**
+     * Audit order yang sudah selesai proses cetak (satu baris per nota).
+     */
+    public function riwayat(Request $request): View
+    {
+        $divisi = RiwayatSelesai::OPERATOR;
+
+        return view('dashboards.riwayat', [
+            'divisi' => $divisi,
+            'judulDivisi' => RiwayatSelesai::label($divisi),
+            'orders' => RiwayatSelesai::orders($request, $divisi),
+            'q' => trim((string) $request->query('q', '')),
+            'dashboardRoute' => 'operator.dashboard',
+        ]);
+    }
+
     public function mulaiCetak(OrderItem $orderItem): RedirectResponse
     {
         abort_unless($orderItem->status_produksi === OrderItem::STATUS_ANTREAN_CETAK, 403);
@@ -99,6 +118,15 @@ class ProductionController extends Controller
         DB::transaction(function () use ($orderItem): void {
             $orderItem->update(['status_produksi' => OrderItem::STATUS_PROSES_CETAK]);
         });
+
+        $item = $orderItem->fresh(['order']);
+        OrderStatusChanged::dispatch(
+            $item->order,
+            $item,
+            OrderItem::STATUS_PROSES_CETAK,
+            [User::ROLE_ADMIN, User::ROLE_OPERATOR_CETAK, User::ROLE_OWNER],
+            "Nota {$item->order?->no_nota} sedang diproses cetak.",
+        );
 
         return back()->with('status', "Item {$orderItem->id} mulai diproses cetak.");
     }
@@ -113,7 +141,9 @@ class ProductionController extends Controller
 
         $data = $request->validated();
 
-        DB::transaction(function () use ($request, $orderItem, $data): void {
+        $statusBerikutnya = null;
+
+        DB::transaction(function () use ($request, $orderItem, $data, &$statusBerikutnya): void {
             $item = OrderItem::query()
                 ->with(['product', 'finishing'])
                 ->whereKey($orderItem->id)
@@ -136,6 +166,20 @@ class ProductionController extends Controller
 
             $item->update(['status_produksi' => $statusBerikutnya]);
         });
+
+        $item = $orderItem->fresh(['order']);
+        $roles = [User::ROLE_ADMIN, User::ROLE_OPERATOR_CETAK, User::ROLE_OWNER];
+        if ($statusBerikutnya === OrderItem::STATUS_ANTREAN_FINISHING) {
+            $roles[] = User::ROLE_FINISHING;
+        }
+
+        OrderStatusChanged::dispatch(
+            $item->order,
+            $item,
+            $statusBerikutnya,
+            $roles,
+            "Nota {$item->order?->no_nota} selesai dicetak: ".(OrderItem::LABEL_STATUS_PRODUKSI[$statusBerikutnya] ?? $statusBerikutnya).'.',
+        );
 
         return back()->with('status', 'Cetak selesai. Status produksi telah diperbarui.');
     }

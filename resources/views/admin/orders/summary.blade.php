@@ -60,6 +60,19 @@
                 </button>
 
                 <a
+                    href="{{ route('admin.orders.pdf', $order) }}"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700"
+                >
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 15h6m-6 3h4.5" />
+                    </svg>
+                    Cetak PDF
+                </a>
+
+                <a
                     href="{{ $waLink }}"
                     target="_blank"
                     rel="noopener noreferrer"
@@ -227,6 +240,15 @@
             </div>
         </section>
 
+        {{-- Catatan pengecualian bukti (audit) --}}
+        @if ($order->catatan_pengecualian)
+            <section class="print-card rounded-2xl border border-amber-200 bg-amber-50/60 p-6 shadow-sm">
+                <p class="text-[10px] font-semibold uppercase tracking-[0.16em] text-amber-600">Audit &middot; Pengecualian Bukti</p>
+                <h3 class="mt-1 text-base font-bold text-slate-900">Catatan Pengecualian</h3>
+                <p class="mt-3 whitespace-pre-line text-sm leading-6 text-slate-700">{{ $order->catatan_pengecualian }}</p>
+            </section>
+        @endif
+
         {{-- SPK Advertising --}}
         @if ($order->advertisingSpks->isNotEmpty())
             <section class="print-card overflow-hidden rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50/50 shadow-sm">
@@ -236,7 +258,7 @@
                         <h3 class="mt-1 text-base font-bold text-slate-900">Rangka / Pemasangan / Papan Nama</h3>
                     </div>
                     <span class="inline-flex shrink-0 items-center gap-1.5 self-start rounded-full bg-emerald-100 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-200 sm:self-auto">
-                        Non-Billing · Rp 0
+                        Non-Billing · Tanpa Nominal
                     </span>
                 </div>
 

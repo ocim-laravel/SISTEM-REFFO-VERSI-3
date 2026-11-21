@@ -17,6 +17,9 @@
                     <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Pantau antrean produksi, deadline nota, serta rekap transaksi seluruh instansi secara real-time.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('owner.rekap-orders') }}" class="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/20">
+                        Rekap Order
+                    </a>
                     <a href="{{ route('owner.reports.materials') }}" class="inline-flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-xs font-semibold text-white ring-1 ring-white/15 transition hover:bg-white/20">
                         Laporan Bahan
                     </a>

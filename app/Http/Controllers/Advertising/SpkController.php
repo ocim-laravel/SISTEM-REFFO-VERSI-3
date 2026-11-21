@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Advertising;
 
+use App\Events\OrderStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Advertising\UpdateStatusSpkRequest;
 use App\Models\AdvertisingSpk;
+use App\Models\User;
 use App\Support\MediaStorage;
+use App\Support\RiwayatSelesai;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,13 +47,42 @@ class SpkController extends Controller
         ]);
     }
 
+    /**
+     * Audit order dengan SPK advertising yang sudah selesai (satu baris per nota).
+     * Nominal tagihan sengaja tidak dimuat.
+     */
+    public function riwayat(Request $request): View
+    {
+        $divisi = RiwayatSelesai::ADVERTISING;
+
+        return view('dashboards.riwayat', [
+            'divisi' => $divisi,
+            'judulDivisi' => RiwayatSelesai::label($divisi),
+            'orders' => RiwayatSelesai::orders($request, $divisi),
+            'q' => trim((string) $request->query('q', '')),
+            'dashboardRoute' => 'advertising.dashboard',
+        ]);
+    }
+
     public function updateStatus(AdvertisingSpk $spk, UpdateStatusSpkRequest $request): RedirectResponse
     {
-        DB::transaction(function () use ($spk, $request): void {
+        $status = $request->validated()['status_lapangan'];
+
+        DB::transaction(function () use ($spk, $status): void {
             $spk->update([
-                'status_lapangan' => $request->validated()['status_lapangan'],
+                'status_lapangan' => $status,
             ]);
         });
+
+        $spk->loadMissing('order');
+        $label = AdvertisingSpk::LABEL_STATUS_LAPANGAN[$status] ?? $status;
+        OrderStatusChanged::dispatch(
+            $spk->order,
+            null,
+            $status,
+            [User::ROLE_ADMIN, User::ROLE_ADVERTISING, User::ROLE_OWNER],
+            "SPK nota {$spk->order?->no_nota} diperbarui: {$label}.",
+        );
 
         return back()->with('status', 'Progres lapangan SPK berhasil diperbarui.');
     }

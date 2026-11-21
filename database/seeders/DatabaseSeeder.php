@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             FinishingSeeder::class,
             MaterialRollSeeder::class,
             MaterialOffcutSeeder::class,
+            ComprehensiveSeeder::class,
         ]);
     }
 }

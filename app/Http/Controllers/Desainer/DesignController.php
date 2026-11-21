@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Desainer;
 
+use App\Events\OrderStatusChanged;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Desainer\FinalizeDesignRequest;
 use App\Http\Requests\Desainer\UploadPreviewRequest;
 use App\Models\DesignRevision;
 use App\Models\OrderItem;
+use App\Models\User;
 use App\Support\MediaStorage;
+use App\Support\RiwayatSelesai;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,6 +71,22 @@ class DesignController extends Controller
     }
 
     /**
+     * Audit order yang sudah difinalisasi desainer (satu baris per nota).
+     */
+    public function riwayat(Request $request): View
+    {
+        $divisi = RiwayatSelesai::DESAINER;
+
+        return view('dashboards.riwayat', [
+            'divisi' => $divisi,
+            'judulDivisi' => RiwayatSelesai::label($divisi),
+            'orders' => RiwayatSelesai::orders($request, $divisi),
+            'q' => trim((string) $request->query('q', '')),
+            'dashboardRoute' => 'desainer.dashboard',
+        ]);
+    }
+
+    /**
      * Unggah preview ACC dan catat Log Revisi beruntun.
      */
     public function uploadPreview(UploadPreviewRequest $request, OrderItem $orderItem): RedirectResponse
@@ -108,7 +127,7 @@ class DesignController extends Controller
     }
 
     /**
-     * Finalisasi ACC: wajib menyimpan file TIFF dan master arsip.
+     * Finalisasi ACC: TIFF dan master arsip wajib diunggah per item.
      */
     public function finalisasi(FinalizeDesignRequest $request, OrderItem $orderItem): RedirectResponse
     {
@@ -138,6 +157,15 @@ class DesignController extends Controller
                 'status_produksi' => OrderItem::STATUS_ANTREAN_CETAK,
             ]);
         });
+
+        $item = $orderItem->fresh(['order']);
+        OrderStatusChanged::dispatch(
+            $item->order,
+            $item,
+            OrderItem::STATUS_ANTREAN_CETAK,
+            [User::ROLE_ADMIN, User::ROLE_DESAINER, User::ROLE_OPERATOR_CETAK, User::ROLE_OWNER],
+            "Nota {$item->order?->no_nota} masuk antrean cetak.",
+        );
 
         return back()->with('status', 'Desain final. Item telah dikirim ke antrean cetak.');
     }

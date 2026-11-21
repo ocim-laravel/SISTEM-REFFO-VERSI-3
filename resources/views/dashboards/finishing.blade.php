@@ -23,6 +23,11 @@
             </div>
         </section>
 
+        <div class="flex flex-wrap gap-2 border-b border-slate-200">
+            <span class="rounded-t-lg border-b-2 border-teal-600 px-4 py-3 text-sm font-semibold text-teal-700">Antrean Finishing</span>
+            <a href="{{ route('finishing.riwayat') }}" class="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-500 transition hover:text-slate-800">Riwayat Selesai</a>
+        </div>
+
         <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             @forelse ($items as $item)
                 @php

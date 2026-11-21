@@ -24,6 +24,11 @@
             </div>
         </section>
 
+        <div class="flex flex-wrap gap-2 border-b border-slate-200">
+            <span class="rounded-t-lg border-b-2 border-emerald-600 px-4 py-3 text-sm font-semibold text-emerald-700">SPK Aktif</span>
+            <a href="{{ route('advertising.riwayat') }}" class="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-500 transition hover:text-slate-800">Riwayat Selesai</a>
+        </div>
+
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>

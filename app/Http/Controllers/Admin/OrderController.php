@@ -12,10 +12,12 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\User;
 use App\Support\MediaStorage;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -26,31 +28,37 @@ class OrderController extends Controller
     {
         $tab = $request->string('tab')->toString() === 'siap_diambil' ? 'siap_diambil' : 'semua';
         $instansi = trim((string) $request->query('instansi', ''));
+        $q = trim((string) $request->query('q', ''));
 
         $query = Order::query()
             ->with(['customer', 'items.product', 'items.finishing', 'advertisingSpks'])
             ->withCount('items');
 
-        if ($instansi !== '') {
-            $query->whereHas('customer', fn (Builder $customer) => $customer->where('instansi', $instansi));
-        }
-
         if ($tab === 'siap_diambil') {
             $query->siapDiambil();
         }
 
-        $orders = $query->latest()->paginate(20)->withQueryString();
+        if ($q !== '') {
+            $query->where(function (Builder $query) use ($q): void {
+                $query->where('no_nota', 'like', "%{$q}%")
+                    ->orWhereHas('customer', function (Builder $customer) use ($q): void {
+                        $customer->where('instansi', 'like', "%{$q}%")
+                            ->orWhere('nama_pelanggan', 'like', "%{$q}%");
+                    });
+            });
+        }
 
-        $groups = $orders->getCollection()
-            ->groupBy(fn (Order $order): string => $order->customer?->instansi ?: Customer::INSTANSI_DEFAULT)
-            ->sortKeys();
+        if ($instansi !== '') {
+            $query->whereHas('customer', fn (Builder $customer) => $customer->where('instansi', $instansi));
+        }
+
+        $orders = $query->latest()->paginate(15)->withQueryString();
 
         $instansiOptions = Customer::query()
-            ->select('instansi')
-            ->selectRaw('COUNT(*) as total_pelanggan')
-            ->groupBy('instansi')
+            ->distinct()
             ->orderBy('instansi')
-            ->get();
+            ->pluck('instansi')
+            ->map(fn (string $instansi): object => (object) ['instansi' => $instansi]);
 
         $orderCounts = Order::query()
             ->join('customers', 'customers.id', '=', 'orders.customer_id')
@@ -60,9 +68,9 @@ class OrderController extends Controller
 
         return view('admin.orders.index', [
             'orders' => $orders,
-            'groups' => $groups,
             'tab' => $tab,
             'instansi' => $instansi,
+            'q' => $q,
             'instansiOptions' => $instansiOptions,
             'orderCounts' => $orderCounts,
             'totalNotaCount' => Order::query()->count(),
@@ -149,8 +157,7 @@ class OrderController extends Controller
 
         $customers = Customer::query()
             ->where(function (Builder $query) use ($term): void {
-                $query
-                    ->where('nama_pelanggan', 'like', "%{$term}%")
+                $query->where('nama_pelanggan', 'like', "%{$term}%")
                     ->orWhere('instansi', 'like', "%{$term}%");
             })
             ->orderBy('instansi')
@@ -286,27 +293,19 @@ class OrderController extends Controller
         ]);
     }
 
-    public function pelunasan(Order $order): RedirectResponse
+    public function pdf(Order $order): Response
     {
-        DB::transaction(function () use ($order): void {
-            $order->update([
-                'jumlah_dp' => $order->total_tagihan,
-                'status_bayar' => Order::STATUS_BAYAR_LUNAS,
-            ]);
-        });
+        $order->load([
+            'customer',
+            'user',
+            'items.product',
+            'items.finishing',
+            'advertisingSpks',
+        ]);
 
-        return back()->with('status', "Nota {$order->no_nota} sudah ditandai lunas.");
-    }
-
-    public function serahTerima(Order $order): RedirectResponse
-    {
-        DB::transaction(function () use ($order): void {
-            $order->items()
-                ->where('status_produksi', OrderItem::STATUS_SIAP_DIAMBIL)
-                ->update(['status_produksi' => OrderItem::STATUS_SELESAI]);
-        });
-
-        return back()->with('status', "Barang nota {$order->no_nota} sudah diserahkan ke pelanggan.");
+        return Pdf::loadView('admin.orders.pdf', ['order' => $order])
+            ->setPaper('a4', 'portrait')
+            ->stream('nota-'.$order->no_nota.'.pdf');
     }
 
     /**
@@ -314,14 +313,14 @@ class OrderController extends Controller
      */
     private function resolveCustomer(array $data): Customer
     {
-        $instansi = trim((string) ($data['instansi'] ?? ''));
+        $namaInstansi = trim((string) ($data['instansi'] ?? ''));
 
-        if ($instansi === '') {
-            $instansi = Customer::INSTANSI_DEFAULT;
+        if ($namaInstansi === '') {
+            $namaInstansi = Customer::INSTANSI_DEFAULT;
         }
 
         $atribut = [
-            'instansi' => $instansi,
+            'instansi' => $namaInstansi,
             'nama_pelanggan' => trim($data['nama_pelanggan']),
             'no_wa' => trim($data['no_wa']),
             'kategori' => $data['kategori'],
@@ -335,13 +334,18 @@ class OrderController extends Controller
             return $customer;
         }
 
-        return Customer::query()->updateOrCreate(
-            [
-                'instansi' => $atribut['instansi'],
-                'nama_pelanggan' => $atribut['nama_pelanggan'],
-            ],
-            $atribut,
-        );
+        $customer = Customer::query()
+            ->where('nama_pelanggan', $atribut['nama_pelanggan'])
+            ->where('instansi', $namaInstansi)
+            ->first();
+
+        if (! $customer) {
+            return Customer::query()->create($atribut);
+        }
+
+        $customer->update($atribut);
+
+        return $customer;
     }
 
     /**

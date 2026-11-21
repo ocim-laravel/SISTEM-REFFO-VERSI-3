@@ -23,6 +23,11 @@
             </div>
         </section>
 
+        <div class="flex flex-wrap gap-2 border-b border-slate-200">
+            <span class="rounded-t-lg border-b-2 border-amber-500 px-4 py-3 text-sm font-semibold text-amber-700">Antrean Cetak</span>
+            <a href="{{ route('operator.riwayat') }}" class="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-500 transition hover:text-slate-800">Riwayat Selesai</a>
+        </div>
+
         @if ($errors->any())
             <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">
                 <p class="font-semibold">Periksa kembali input Anda:</p>

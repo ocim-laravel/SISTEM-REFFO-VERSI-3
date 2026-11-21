@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
@@ -71,6 +72,41 @@ class DashboardController extends OwnerController
                 'omzet' => $rekap->sum('omzet'),
                 'piutang' => $rekap->sum('piutang'),
             ],
+        ]);
+    }
+
+    /**
+     * Rekap transaksi berbasis order (satu baris = satu nota) dengan pagination.
+     */
+    public function rekapOrders(Request $request): View
+    {
+        $this->pastikanOwner();
+
+        $q = trim((string) $request->query('q', ''));
+
+        $query = Order::query()
+            ->with(['customer', 'items.product', 'items.finishing'])
+            ->withCount('items');
+
+        if ($q !== '') {
+            $query->where(function (Builder $query) use ($q): void {
+                $query->where('no_nota', 'like', "%{$q}%")
+                    ->orWhereHas('customer', function (Builder $customer) use ($q): void {
+                        $customer->where('instansi', 'like', "%{$q}%")
+                            ->orWhere('nama_pelanggan', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        $orders = $query->latest()->paginate(15)->withQueryString();
+
+        return view('owner.rekap-orders', [
+            'orders' => $orders,
+            'q' => $q,
+            'totalNota' => Order::query()->count(),
+            'totalOmzet' => (float) Order::query()->sum('total_tagihan'),
+            'totalPiutang' => (float) Order::query()->sum('total_tagihan')
+                - (float) Order::query()->sum('jumlah_dp'),
         ]);
     }
 

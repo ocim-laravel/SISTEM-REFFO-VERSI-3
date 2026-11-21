@@ -47,6 +47,9 @@
                 :class="tab === 'arsip' ? 'border-fuchsia-600 text-fuchsia-700' : 'border-transparent text-slate-500 hover:text-slate-800'">
                 Arsip Master Desain ({{ $arsip->total() }})
             </button>
+            <a href="{{ route('desainer.riwayat') }}" class="rounded-t-lg border-b-2 border-transparent px-4 py-3 text-sm font-semibold text-slate-500 transition hover:text-slate-800">
+                Riwayat Selesai
+            </a>
         </div>
 
         {{-- TAB: Antrean Desain --}}
@@ -293,16 +296,20 @@
                         <tbody class="divide-y divide-slate-100">
                             @forelse ($arsip as $arsipItem)
                                 <tr class="hover:bg-slate-50/70">
-                                    <td class="px-4 py-3 font-medium text-slate-700">{{ $arsipItem->order?->no_nota }}</td>
+                                    <td class="px-4 py-3 font-medium text-slate-700">
+                                        <p>{{ $arsipItem->order?->no_nota }}</p>
+                                        <p class="mt-0.5 text-[10px] text-slate-400">Item #{{ $arsipItem->id }}</p>
+                                    </td>
                                     <td class="px-4 py-3">
                                         <p class="font-semibold text-slate-800">{{ $arsipItem->order?->customer?->nama_pelanggan }}</p>
                                         <p class="text-xs text-slate-500">{{ $arsipItem->order?->customer?->instansi }}</p>
                                     </td>
-                                    <td class="px-4 py-3 text-slate-600">{{ $arsipItem->product?->nama_produk }}</td>
+                                    <td class="px-4 py-3 text-slate-600">{{ $arsipItem->product?->nama_produk ?: '-' }}</td>
                                     <td class="px-4 py-3 font-mono text-xs text-slate-500">
                                         <span class="block max-w-[16rem] truncate" title="{{ basename((string) $arsipItem->file_master_arsip) }}">
                                             {{ basename((string) $arsipItem->file_master_arsip) }}
                                         </span>
+                                        <span class="mt-0.5 block text-[10px] text-slate-400">Master per item</span>
                                     </td>
                                     <td class="px-4 py-3 text-right">
                                         <a href="{{ route('desainer.arsip.unduh', $arsipItem) }}"

@@ -20,6 +20,12 @@ use Illuminate\Support\Facades\Storage;
     'status_desain',
     'catatan_desain',
     'lampiran_briefing',
+    'bukti_pelunasan',
+    'foto_serah_terima',
+    'nama_pengambil',
+    'no_wa_pengambil',
+    'waktu_serah_terima',
+    'catatan_pengecualian',
     'deadline',
 ])]
 class Order extends Model
@@ -86,6 +92,7 @@ class Order extends Model
         return [
             'total_tagihan' => 'decimal:2',
             'jumlah_dp' => 'decimal:2',
+            'waktu_serah_terima' => 'datetime',
             'deadline' => 'datetime',
         ];
     }
@@ -129,6 +136,35 @@ class Order extends Model
         return max((float) $this->total_tagihan - (float) $this->jumlah_dp, 0);
     }
 
+    public function instansiLabel(): string
+    {
+        return $this->customer?->instansi ?: Customer::INSTANSI_DEFAULT;
+    }
+
+    public function picLabel(): string
+    {
+        return $this->customer?->nama_pelanggan ?: '-';
+    }
+
+    /**
+     * Ringkasan produksi pada level nota (bukan per item).
+     * Pastikan relasi items sudah dimuat sebelum memanggil method ini.
+     */
+    public function statusProduksiRingkas(): string
+    {
+        $statusUnik = $this->items->pluck('status_produksi')->unique();
+
+        if ($statusUnik->isEmpty()) {
+            return 'Belum ada item';
+        }
+
+        if ($statusUnik->count() === 1) {
+            return $this->items->first()?->statusProduksiLabel() ?? '-';
+        }
+
+        return 'Beragam ('.$statusUnik->count().' status)';
+    }
+
     public function statusBayarLabel(): string
     {
         return self::LABEL_STATUS_BAYAR[$this->status_bayar] ?? $this->status_bayar;
@@ -146,5 +182,31 @@ class Order extends Model
         }
 
         return Storage::disk(MediaStorage::DISK)->url($this->lampiran_briefing);
+    }
+
+    public function buktiPelunasanUrl(): ?string
+    {
+        if (! $this->bukti_pelunasan) {
+            return null;
+        }
+
+        return Storage::disk(MediaStorage::DISK)->url($this->bukti_pelunasan);
+    }
+
+    public function fotoSerahTerimaUrl(): ?string
+    {
+        if (! $this->foto_serah_terima) {
+            return null;
+        }
+
+        return Storage::disk(MediaStorage::DISK)->url($this->foto_serah_terima);
+    }
+
+    /**
+     * Serah terima hanya dibuka untuk nota yang sudah lunas.
+     */
+    public function bolehDiserahkan(): bool
+    {
+        return $this->status_bayar === self::STATUS_BAYAR_LUNAS;
     }
 }

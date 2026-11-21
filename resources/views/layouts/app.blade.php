@@ -71,6 +71,59 @@
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
                 </a>
 
+                @php
+                    $riwayatRute = [
+                        \App\Models\User::ROLE_DESAINER => 'desainer.riwayat',
+                        \App\Models\User::ROLE_OPERATOR_CETAK => 'operator.riwayat',
+                        \App\Models\User::ROLE_FINISHING => 'finishing.riwayat',
+                        \App\Models\User::ROLE_ADVERTISING => 'advertising.riwayat',
+                    ];
+                @endphp
+
+                @if (isset($riwayatRute[auth()->user()->role]))
+                    <a
+                        href="{{ route($riwayatRute[auth()->user()->role]) }}"
+                        class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {{ request()->routeIs('desainer.riwayat', 'operator.riwayat', 'finishing.riwayat', 'advertising.riwayat', 'desainer.orders.show', 'operator.orders.show', 'finishing.orders.show', 'advertising.orders.show') ? 'bg-white/10 text-white ring-1 ring-white/10' : 'text-slate-300 hover:bg-white/5 hover:text-white' }}"
+                    >
+                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-cyan-500/15 text-cyan-300">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate">Riwayat Selesai</span>
+                            <span class="block truncate text-[11px] font-normal text-slate-400">Audit order per nota</span>
+                        </span>
+                    </a>
+                @endif
+
+                @php
+                    $serahTerimaRute = [
+                        \App\Models\User::ROLE_ADMIN => 'admin.serah-terima.index',
+                        \App\Models\User::ROLE_DESAINER => 'desainer.serah-terima.index',
+                        \App\Models\User::ROLE_OPERATOR_CETAK => 'operator.serah-terima.index',
+                        \App\Models\User::ROLE_FINISHING => 'finishing.serah-terima.index',
+                        \App\Models\User::ROLE_ADVERTISING => 'advertising.serah-terima.index',
+                    ];
+                @endphp
+
+                @if (isset($serahTerimaRute[auth()->user()->role]))
+                    <a
+                        href="{{ route($serahTerimaRute[auth()->user()->role]) }}"
+                        class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {{ request()->routeIs('*.serah-terima.index', '*.orders.serah-terima.create', '*.orders.pelunasan.create') ? 'bg-white/10 text-white ring-1 ring-white/10' : 'text-slate-300 hover:bg-white/5 hover:text-white' }}"
+                    >
+                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-300">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5 12 3.75 3.75 7.5m16.5 0L12 11.25 3.75 7.5m16.5 0v9L12 20.25l-8.25-3.75v-9M12 11.25v9" />
+                            </svg>
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate">Serah Terima</span>
+                            <span class="block truncate text-[11px] font-normal text-slate-400">Foto barang &amp; penerima</span>
+                        </span>
+                    </a>
+                @endif
+
                 @if (auth()->user()->role === \App\Models\User::ROLE_ADMIN)
                     <a
                         href="{{ route('admin.orders.create') }}"
@@ -98,13 +151,28 @@
                         </span>
                         <span class="min-w-0 flex-1">
                             <span class="block truncate">Daftar Nota</span>
-                            <span class="block truncate text-[11px] font-normal text-slate-400">Per instansi &amp; siap diambil</span>
+                            <span class="block truncate text-[11px] font-normal text-slate-400">Satu baris per nota &amp; detail item</span>
                         </span>
                     </a>
                 @endif
 
                 @if (auth()->user()->role === \App\Models\User::ROLE_OWNER)
                     <p class="px-3 pt-5 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">Menu Owner</p>
+
+                    <a
+                        href="{{ route('owner.rekap-orders') }}"
+                        class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {{ request()->routeIs('owner.rekap-orders', 'owner.orders.show') ? 'bg-white/10 text-white ring-1 ring-white/10' : 'text-slate-300 hover:bg-white/5 hover:text-white' }}"
+                    >
+                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-500/15 text-sky-300">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                            </svg>
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate">Rekap Order</span>
+                            <span class="block truncate text-[11px] font-normal text-slate-400">Satu baris per nota</span>
+                        </span>
+                    </a>
 
                     <a
                         href="{{ route('owner.reports.materials') }}"
@@ -224,6 +292,53 @@
                         <span class="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
                         {{ auth()->user()->roleLabel() }}
                     </span>
+
+                    <div
+                        x-data="topbarNotifications(@js(auth()->user()->role))"
+                        x-init="init()"
+                        class="relative"
+                    >
+                        <button
+                            type="button"
+                            class="relative inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
+                            @click="open = !open"
+                            aria-label="Notifikasi"
+                        >
+                            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                            </svg>
+                            <span
+                                x-cloak
+                                x-show="unreadCount > 0"
+                                x-text="unreadCount > 9 ? '9+' : unreadCount"
+                                class="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+                            ></span>
+                        </button>
+
+                        <div
+                            x-cloak
+                            x-show="open"
+                            @click.outside="open = false"
+                            x-transition
+                            class="absolute right-0 z-40 mt-2 w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
+                        >
+                            <div class="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+                                <p class="text-sm font-semibold text-slate-900">Notifikasi</p>
+                                <button type="button" class="text-xs font-medium text-indigo-600 hover:text-indigo-700" @click="markAllRead()">Tandai dibaca</button>
+                            </div>
+                            <div class="max-h-80 overflow-y-auto">
+                                <template x-if="items.length === 0">
+                                    <p class="px-4 py-6 text-center text-sm text-slate-500">Belum ada notifikasi.</p>
+                                </template>
+                                <template x-for="item in items" :key="item.id">
+                                    <div class="border-b border-slate-100 px-4 py-3 last:border-b-0" :class="item.read ? 'bg-white' : 'bg-indigo-50/40'">
+                                        <p class="text-sm font-medium text-slate-800" x-text="item.message"></p>
+                                        <p class="mt-1 text-[11px] text-slate-500" x-text="item.time"></p>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="hidden h-8 w-px bg-slate-200 sm:block"></div>
 

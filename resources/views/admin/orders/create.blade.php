@@ -82,7 +82,7 @@
                                     class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                                 >
                             </div>
-                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Auto-complete aktif setelah 2 huruf. Nama/instansi yang cocok persis terisi otomatis; jika lebih dari satu, klik hasil.</p>
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Auto-complete aktif setelah 2 huruf. Jika tidak ada yang cocok, data baru akan dibuat saat nota disimpan.</p>
                         </div>
 
                         <div>
@@ -95,10 +95,10 @@
                                 @input.debounce.300ms="customerId = null; searchCustomers('instansi')"
                                 @focus="searchCustomers('instansi')"
                                 autocomplete="off"
-                                placeholder="Order Pribadi"
+                                placeholder="Contoh: PT Contoh Nusantara"
                                 class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                             >
-                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Kosongkan bila pelanggan pribadi — otomatis menjadi “Order Pribadi”.</p>
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Kosongkan untuk Order Pribadi. Auto-complete juga aktif berdasarkan instansi.</p>
                         </div>
 
                         <div>
@@ -723,9 +723,8 @@
                 },
 
                 async searchCustomers(source = 'nama') {
-                    const primary = source === 'instansi' ? this.customer.instansi : this.customer.nama_pelanggan;
-                    const fallback = source === 'instansi' ? this.customer.nama_pelanggan : this.customer.instansi;
-                    const term = (primary || '').trim().length >= 2 ? primary.trim() : (fallback || '').trim();
+                    const field = source === 'instansi' ? 'instansi' : 'nama_pelanggan';
+                    const term = (this.customer[field] || '').trim();
 
                     if (term.length < 2) {
                         this.results = [];
@@ -734,8 +733,10 @@
                         return;
                     }
 
+                    const params = new URLSearchParams({ q: term });
+
                     try {
-                        const response = await fetch(this.searchUrl + '?q=' + encodeURIComponent(term), {
+                        const response = await fetch(`${this.searchUrl}?${params.toString()}`, {
                             headers: { Accept: 'application/json' },
                         });
 
@@ -745,10 +746,11 @@
 
                         this.results = await response.json();
                         const termLower = term.toLowerCase();
-                        const exactMatches = this.results.filter((result) => [
-                            result.nama_pelanggan,
-                            result.instansi,
-                        ].some((value) => String(value ?? '').toLowerCase() === termLower));
+                        const exactMatches = this.results.filter((result) => {
+                            const value = String(result[field] ?? '').trim().toLowerCase();
+
+                            return value === termLower;
+                        });
 
                         if (exactMatches.length === 1) {
                             this.pickCustomer(exactMatches[0]);
@@ -766,7 +768,7 @@
                 pickCustomer(customer) {
                     this.customerId = customer.id;
                     this.customer = {
-                        instansi: customer.instansi ?? '',
+                        instansi: customer.instansi || 'Order Pribadi',
                         nama_pelanggan: customer.nama_pelanggan ?? '',
                         no_wa: customer.no_wa ?? '',
                         kategori: customer.kategori ?? 'umum',
@@ -777,9 +779,11 @@
                 },
 
                 resetCustomer() {
+                    const instansi = this.customer.instansi || 'Order Pribadi';
+
                     this.customerId = null;
                     this.customer = {
-                        instansi: '',
+                        instansi,
                         nama_pelanggan: '',
                         no_wa: '',
                         kategori: 'umum',
