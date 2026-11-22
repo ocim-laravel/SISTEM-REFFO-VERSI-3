@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Customer;
+use App\Models\Instansi;
 use Illuminate\Database\Seeder;
 
 class CustomerSeeder extends Seeder
@@ -72,12 +73,16 @@ class CustomerSeeder extends Seeder
         ];
 
         foreach ($customers as $customer) {
+            $instansi = Instansi::query()->firstOrCreate([
+                'nama_instansi' => $customer['instansi'],
+            ]);
+
             Customer::updateOrCreate(
                 [
                     'instansi' => $customer['instansi'],
                     'nama_pelanggan' => $customer['nama_pelanggan'],
                 ],
-                $customer,
+                ['instansi_id' => $instansi->id] + $customer,
             );
         }
     }

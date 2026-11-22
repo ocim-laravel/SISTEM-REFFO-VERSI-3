@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 #[Fillable([
     'order_id',
+    'nama_item',
     'product_id',
     'finishing_id',
     'lebar_m',
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Storage;
     'harga_satuan_dipakai',
     'subtotal',
     'status_produksi',
+    'acc_admin_id',
+    'waktu_acc',
     'file_preview_acc',
     'file_cetak_tiff',
     'file_master_arsip',
@@ -31,6 +34,8 @@ class OrderItem extends Model
     public const STATUS_PROSES_DESAIN = 'proses_desain';
 
     public const STATUS_MENUNGGU_ACC = 'menunggu_acc';
+
+    public const STATUS_REVISI = 'revisi';
 
     public const STATUS_ANTREAN_CETAK = 'antrean_cetak';
 
@@ -51,6 +56,7 @@ class OrderItem extends Model
         self::STATUS_MENUNGGU_DESAIN,
         self::STATUS_PROSES_DESAIN,
         self::STATUS_MENUNGGU_ACC,
+        self::STATUS_REVISI,
         self::STATUS_ANTREAN_CETAK,
         self::STATUS_PROSES_CETAK,
         self::STATUS_ANTREAN_FINISHING,
@@ -66,6 +72,7 @@ class OrderItem extends Model
         self::STATUS_MENUNGGU_DESAIN => 'Menunggu Desain',
         self::STATUS_PROSES_DESAIN => 'Proses Desain',
         self::STATUS_MENUNGGU_ACC => 'Menunggu ACC',
+        self::STATUS_REVISI => 'Revisi Desain',
         self::STATUS_ANTREAN_CETAK => 'Antrean Cetak',
         self::STATUS_PROSES_CETAK => 'Proses Cetak',
         self::STATUS_ANTREAN_FINISHING => 'Antrean Finishing',
@@ -88,6 +95,7 @@ class OrderItem extends Model
             'luas_tagihan_m2' => 'decimal:2',
             'harga_satuan_dipakai' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'waktu_acc' => 'datetime',
         ];
     }
 
@@ -111,6 +119,39 @@ class OrderItem extends Model
         return $this->hasMany(DesignRevision::class);
     }
 
+    public function accAdmin(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'acc_admin_id');
+    }
+
+    /**
+     * Revisi pending adalah permintaan Admin yang belum dijawab desainer.
+     */
+    public function revisiPending(): bool
+    {
+        if ($this->relationLoaded('order') && $this->order) {
+            return $this->order->revisiPending();
+        }
+
+        return $this->designRevisions
+            ->contains(fn (DesignRevision $revision): bool => $revision->status_revisi === DesignRevision::STATUS_MENUNGGU)
+            || DesignRevision::query()
+                ->where('order_id', $this->order_id)
+                ->whereNull('order_item_id')
+                ->where('status_revisi', DesignRevision::STATUS_MENUNGGU)
+                ->exists();
+    }
+
+    /**
+     * Finalisasi TIFF/master hanya aktif saat preview sudah ACC Admin dan tidak ada revisi pending.
+     */
+    public function bolehFinalisasi(): bool
+    {
+        return $this->status_produksi === self::STATUS_MENUNGGU_ACC
+            && filled($this->acc_admin_id)
+            && ! ($this->order?->revisiPending() ?? $this->revisiPending());
+    }
+
     public function materialLogs(): HasMany
     {
         return $this->hasMany(MaterialLog::class);
@@ -124,6 +165,30 @@ class OrderItem extends Model
     public function statusProduksiLabel(): string
     {
         return self::LABEL_STATUS_PRODUKSI[$this->status_produksi] ?? $this->status_produksi;
+    }
+
+    /**
+     * Progres desain satu item (0-100) untuk progress bar antrean per nota.
+     */
+    public function progresDesainPersen(): int
+    {
+        if (filled($this->file_cetak_tiff)) {
+            return 90;
+        }
+
+        return match ($this->status_produksi) {
+            self::STATUS_MENUNGGU_DESAIN => 0,
+            self::STATUS_PROSES_DESAIN => 25,
+            self::STATUS_REVISI => 45,
+            self::STATUS_MENUNGGU_ACC => filled($this->acc_admin_id) ? 75 : 65,
+            self::STATUS_ANTREAN_CETAK,
+            self::STATUS_PROSES_CETAK,
+            self::STATUS_ANTREAN_FINISHING,
+            self::STATUS_PROSES_FINISHING,
+            self::STATUS_SIAP_DIAMBIL,
+            self::STATUS_SELESAI => 100,
+            default => 0,
+        };
     }
 
     public function fileUrl(?string $path): ?string

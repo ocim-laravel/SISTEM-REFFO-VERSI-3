@@ -74,31 +74,63 @@
                                     id="nama_pelanggan"
                                     name="nama_pelanggan"
                                     x-model="customer.nama_pelanggan"
-                                    @input.debounce.300ms="customerId = null; searchCustomers('nama')"
-                                    @focus="searchCustomers('nama')"
+                                    @input.debounce.300ms="customerId = null; searchCustomers()"
+                                    @focus="searchCustomers()"
                                     autocomplete="off"
                                     required
                                     placeholder="Ketik nama pelanggan atau PIC…"
                                     class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-3 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                                 >
                             </div>
-                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Auto-complete aktif setelah 2 huruf. Jika tidak ada yang cocok, data baru akan dibuat saat nota disimpan.</p>
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Auto-complete aktif setelah 2 huruf, dibatasi oleh instansi yang dipilih. Jika tidak ada yang cocok, pelanggan baru akan dibuat dengan instansi terpilih.</p>
                         </div>
 
-                        <div>
-                            <label for="instansi" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">Instansi</label>
-                            <input
-                                type="text"
-                                id="instansi"
-                                name="instansi"
-                                x-model="customer.instansi"
-                                @input.debounce.300ms="customerId = null; searchCustomers('instansi')"
-                                @focus="searchCustomers('instansi')"
-                                autocomplete="off"
-                                placeholder="Contoh: PT Contoh Nusantara"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
-                            >
-                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Kosongkan untuk Order Pribadi. Auto-complete juga aktif berdasarkan instansi.</p>
+                        <div class="sm:col-span-2">
+                            <label for="instansi_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                Instansi <span class="text-rose-500">*</span>
+                            </label>
+                            <div class="flex flex-col gap-2 sm:flex-row">
+                                <select
+                                    id="instansi_id"
+                                    name="instansi_id"
+                                    x-model="customer.instansi_id"
+                                    @change="onInstansiChange()"
+                                    required
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                >
+                                    <option value="">Pilih instansi…</option>
+                                    <template x-for="instansi in instansis" :key="instansi.id">
+                                        <option :value="instansi.id" x-text="instansi.nama_instansi"></option>
+                                    </template>
+                                    <option value="__new__">+ Tambah instansi baru…</option>
+                                </select>
+                                <input type="hidden" name="instansi" x-model="customer.instansi">
+                            </div>
+
+                            <div x-show="instansiBaruMode" x-cloak class="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+                                <label class="block text-xs font-semibold text-slate-700" for="instansi_baru">Nama Instansi Baru</label>
+                                <div class="mt-2 flex flex-col gap-2 sm:flex-row">
+                                    <input
+                                        type="text"
+                                        id="instansi_baru"
+                                        x-model="instansiBaru"
+                                        @keydown.enter.prevent="tambahInstansi()"
+                                        placeholder="Contoh: PT Contoh Nusantara"
+                                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                    >
+                                    <button type="button" @click="tambahInstansi()"
+                                        class="shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700">
+                                        Tambah Instansi
+                                    </button>
+                                    <button type="button" @click="batalkanInstansiBaru()"
+                                        class="shrink-0 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
+                                        Batal
+                                    </button>
+                                </div>
+                                <p x-show="instansiError" x-cloak class="mt-2 text-xs text-rose-600" x-text="instansiError"></p>
+                            </div>
+
+                            <p class="mt-1.5 text-[11px] leading-5 text-slate-500">Pilih instansi terdaftar atau tambah baru. Kolom instansi pada data pelanggan akan otomatis disinkronkan.</p>
                         </div>
 
                         <div>
@@ -227,6 +259,18 @@
                             </div>
 
                             <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
+                                <div class="lg:col-span-12">
+                                    <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Nama Item <span class="font-normal normal-case text-slate-400">(opsional)</span></label>
+                                    <input
+                                        type="text"
+                                        maxlength="255"
+                                        :name="`items[${index}][nama_item]`"
+                                        x-model="item.nama_item"
+                                        placeholder="Contoh: Spanduk promo Minggu Belanja"
+                                        class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                                    >
+                                </div>
+
                                 <div class="lg:col-span-4">
                                     <label class="mb-1.5 block text-[11px] font-semibold uppercase tracking-wider text-slate-500">Produk <span class="text-rose-500">*</span></label>
                                     <select
@@ -592,8 +636,11 @@
             Alpine.data('orderForm', (config) => ({
                 products: config.products,
                 finishings: config.finishings,
+                instansis: config.instansis,
+                instansiStoreUrl: config.instansiStoreUrl,
                 items: (Array.isArray(config.items) && config.items.length > 0 ? config.items : [{}]).map((item) => ({
                     uid: Math.random().toString(36).slice(2),
+                    nama_item: item.nama_item ?? '',
                     product_id: item.product_id ?? '',
                     qty: item.qty ?? 1,
                     lebar_m: item.lebar_m ?? '',
@@ -605,6 +652,9 @@
                 results: [],
                 showResults: false,
                 searchUrl: config.searchUrl,
+                instansiBaruMode: false,
+                instansiBaru: '',
+                instansiError: '',
                 statusDesain: config.statusDesain,
                 statusBayar: config.statusBayar,
                 jumlahDp: config.jumlahDp ?? '',
@@ -614,6 +664,7 @@
                 addItem() {
                     this.items.push({
                         uid: Math.random().toString(36).slice(2),
+                        nama_item: '',
                         product_id: '',
                         qty: 1,
                         lebar_m: '',
@@ -722,18 +773,89 @@
                     }
                 },
 
-                async searchCustomers(source = 'nama') {
-                    const field = source === 'instansi' ? 'instansi' : 'nama_pelanggan';
-                    const term = (this.customer[field] || '').trim();
+                namaInstansiTerpilih() {
+                    return this.instansis.find(
+                        (instansi) => String(instansi.id) === String(this.customer.instansi_id),
+                    )?.nama_instansi || '';
+                },
 
-                    if (term.length < 2) {
+                onInstansiChange() {
+                    this.customerId = null;
+                    this.results = [];
+                    this.showResults = false;
+                    this.instansiError = '';
+
+                    if (this.customer.instansi_id === '__new__') {
+                        this.instansiBaruMode = true;
+                        this.customer.instansi = '';
+
+                        return;
+                    }
+
+                    this.instansiBaruMode = false;
+                    this.customer.instansi = this.namaInstansiTerpilih();
+                },
+
+                async tambahInstansi() {
+                    const nama = (this.instansiBaru || '').trim();
+
+                    if (!nama) {
+                        this.instansiError = 'Nama instansi wajib diisi.';
+
+                        return;
+                    }
+
+                    try {
+                        const response = await fetch(this.instansiStoreUrl, {
+                            method: 'POST',
+                            headers: {
+                                Accept: 'application/json',
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                            },
+                            body: JSON.stringify({ nama_instansi: nama }),
+                        });
+                        const data = await response.json();
+
+                        if (!response.ok) {
+                            this.instansiError = data.errors?.nama_instansi?.[0] ?? 'Instansi gagal ditambahkan.';
+
+                            return;
+                        }
+
+                        this.instansis.push(data);
+                        this.customer.instansi_id = data.id;
+                        this.customer.instansi = data.nama_instansi;
+                        this.instansiBaruMode = false;
+                        this.instansiBaru = '';
+                        this.instansiError = '';
+                    } catch (error) {
+                        this.instansiError = 'Instansi gagal ditambahkan. Coba lagi.';
+                    }
+                },
+
+                batalkanInstansiBaru() {
+                    this.customer.instansi_id = '';
+                    this.customer.instansi = '';
+                    this.instansiBaruMode = false;
+                    this.instansiBaru = '';
+                    this.instansiError = '';
+                },
+
+                async searchCustomers() {
+                    const term = (this.customer.nama_pelanggan || '').trim();
+
+                    if (term.length < 2 || !this.customer.instansi_id || this.customer.instansi_id === '__new__') {
                         this.results = [];
                         this.showResults = false;
 
                         return;
                     }
 
-                    const params = new URLSearchParams({ q: term });
+                    const params = new URLSearchParams({
+                        q: term,
+                        instansi_id: String(this.customer.instansi_id),
+                    });
 
                     try {
                         const response = await fetch(`${this.searchUrl}?${params.toString()}`, {
@@ -745,19 +867,6 @@
                         }
 
                         this.results = await response.json();
-                        const termLower = term.toLowerCase();
-                        const exactMatches = this.results.filter((result) => {
-                            const value = String(result[field] ?? '').trim().toLowerCase();
-
-                            return value === termLower;
-                        });
-
-                        if (exactMatches.length === 1) {
-                            this.pickCustomer(exactMatches[0]);
-
-                            return;
-                        }
-
                         this.showResults = this.results.length > 0;
                     } catch (error) {
                         this.results = [];
@@ -766,23 +875,33 @@
                 },
 
                 pickCustomer(customer) {
+                    const instansiId = customer.instansi_id
+                        ?? this.instansis.find(
+                            (instansi) => instansi.nama_instansi === customer.instansi,
+                        )?.id
+                        ?? '';
+
                     this.customerId = customer.id;
                     this.customer = {
+                        instansi_id: instansiId,
                         instansi: customer.instansi || 'Order Pribadi',
                         nama_pelanggan: customer.nama_pelanggan ?? '',
                         no_wa: customer.no_wa ?? '',
                         kategori: customer.kategori ?? 'umum',
                         alamat: customer.alamat ?? '',
                     };
+                    this.instansiBaruMode = false;
                     this.results = [];
                     this.showResults = false;
                 },
 
                 resetCustomer() {
+                    const instansiId = this.customer.instansi_id;
                     const instansi = this.customer.instansi || 'Order Pribadi';
 
                     this.customerId = null;
                     this.customer = {
+                        instansi_id: instansiId,
                         instansi,
                         nama_pelanggan: '',
                         no_wa: '',

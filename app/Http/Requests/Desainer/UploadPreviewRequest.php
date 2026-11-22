@@ -19,7 +19,7 @@ class UploadPreviewRequest extends FormRequest
     {
         return [
             'catatan_revisi' => ['required', 'string', 'max:1000'],
-            'file_preview' => ['required', 'file', 'image', 'extensions:jpg,jpeg,png,webp,gif', 'max:10240'],
+            'file_preview' => ['required', 'file', 'image', 'extensions:jpg,jpeg,png', 'max:10240'],
         ];
     }
 
@@ -32,7 +32,7 @@ class UploadPreviewRequest extends FormRequest
             'catatan_revisi.required' => 'Catatan revisi wajib diisi.',
             'file_preview.required' => 'File preview ACC wajib diunggah.',
             'file_preview.image' => 'Preview ACC harus berupa gambar JPG atau PNG.',
-            'file_preview.extensions' => 'Preview ACC harus berformat JPG, PNG, WebP, atau GIF.',
+            'file_preview.extensions' => 'Preview ACC harus berformat JPG atau PNG.',
             'file_preview.max' => 'Ukuran preview ACC maksimal 10 MB.',
         ];
     }

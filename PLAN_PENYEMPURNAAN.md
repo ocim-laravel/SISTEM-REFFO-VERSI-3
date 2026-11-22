@@ -1,7 +1,7 @@
 # RENCANA PENYEMPURNAAN SISTEM REFFO (STEP-BY-STEP)
 
 Tujuan: menyempurnakan sistem tanpa keluar dari ruang lingkup Fase 1 dan tanpa mengubah struktur tabel yang sudah berjalan.
-
+ 
 ## Step 1 — Validasi Upload Lebih Ketat
 - StoreOrderRequest: batasi mime type lampiran briefing (jpg,jpeg,png,webp,pdf,tif,tiff,cdr,psd,ai,zip,rar) + max 20 MB.
 - FinalizeDesignRequest: validasi mime type untuk .tif/.tiff dan arsip.

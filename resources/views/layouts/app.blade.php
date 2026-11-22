@@ -71,6 +71,23 @@
                     <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
                 </a>
 
+                @if (auth()->user()->role === \App\Models\User::ROLE_ADMIN)
+                    <a
+                        href="{{ route('admin.design-reviews.index') }}"
+                        class="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition {{ request()->routeIs('admin.design-reviews.*') ? 'bg-white/10 text-white ring-1 ring-white/10' : 'text-slate-300 hover:bg-white/5 hover:text-white' }}"
+                    >
+                        <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-fuchsia-500/15 text-fuchsia-300">
+                            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                        </span>
+                        <span class="min-w-0 flex-1">
+                            <span class="block truncate">Review Desain</span>
+                            <span class="block truncate text-[11px] font-normal text-slate-400">ACC / ajukan revisi</span>
+                        </span>
+                    </a>
+                @endif
+
                 @php
                     $riwayatRute = [
                         \App\Models\User::ROLE_DESAINER => 'desainer.riwayat',

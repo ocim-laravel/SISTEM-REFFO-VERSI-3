@@ -119,7 +119,8 @@ class Tahap7AuditOrderTest extends TestCase
 
         $belumDesainer = $this->buatOrderSiapAudit($meteran, $finishing, [
             'no_nota' => 'DIV-DESAIN-001',
-        ], ['file_master_arsip' => null]);
+            'file_master_arsip' => null,
+        ], ['file_cetak_tiff' => null]);
 
         $belumOperator = $this->buatOrderSiapAudit($meteran, $finishing, [
             'no_nota' => 'DIV-OPERATOR-001',
@@ -187,14 +188,22 @@ class Tahap7AuditOrderTest extends TestCase
         ];
 
         foreach ($ruteDivisi as $role => $rute) {
-            $this->actingAs($this->user($role))
+            $response = $this->actingAs($this->user($role))
                 ->get(route($rute, $order))
                 ->assertOk()
                 ->assertSee('Instansi Tanpa Harga')
                 ->assertSee('PIC Tanpa Harga')
-                ->assertSee('Rangka hollow galvanis')
                 ->assertDontSee('150.000');
+
+            // SPK Advertising disembunyikan hanya dari UI desainer; datanya tetap tersimpan.
+            if ($role === User::ROLE_DESAINER) {
+                $response->assertDontSee('Rangka hollow galvanis');
+            } else {
+                $response->assertSee('Rangka hollow galvanis');
+            }
         }
+
+        $this->assertDatabaseHas('advertising_spks', ['order_id' => $order->id]);
     }
 
     public function test_owner_melihat_rekap_order_per_nota_dengan_paginasi_15(): void
@@ -315,6 +324,7 @@ class Tahap7AuditOrderTest extends TestCase
             'jumlah_dp' => 0,
             'status_bayar' => Order::STATUS_BAYAR_DP,
             'created_at' => null,
+            'file_master_arsip' => null,
         ], $overrides);
 
         $customer = Customer::create([
@@ -334,6 +344,7 @@ class Tahap7AuditOrderTest extends TestCase
             'jumlah_dp' => $data['jumlah_dp'],
             'status_bayar' => $data['status_bayar'],
             'status_desain' => Order::STATUS_DESAIN_FILE_MENTAH,
+            'file_master_arsip' => $data['file_master_arsip'],
         ]);
 
         if ($data['created_at'] !== null) {
@@ -358,10 +369,13 @@ class Tahap7AuditOrderTest extends TestCase
         array $itemOverrides = [],
         string $spkStatus = AdvertisingSpk::STATUS_SELESAI,
     ): Order {
-        $order = $this->buatOrder($orderOverrides);
+        $order = $this->buatOrder(array_merge([
+            'file_master_arsip' => 'MEDIA SISTEM/ARSIP MASTER/master-audit.cdr',
+        ], $orderOverrides));
 
         $this->tambahItem($order, $meteran, $finishing, array_merge([
             'file_master_arsip' => 'MEDIA SISTEM/ARSIP MASTER/master-audit.cdr',
+            'file_cetak_tiff' => 'MEDIA SISTEM/FILE CETAK TIFF/master-audit.tiff',
             'status_produksi' => OrderItem::STATUS_SIAP_DIAMBIL,
         ], $itemOverrides));
 

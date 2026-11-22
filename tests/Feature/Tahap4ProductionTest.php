@@ -29,46 +29,88 @@ class Tahap4ProductionTest extends TestCase
         Storage::fake(MediaStorage::DISK);
     }
 
-    public function test_desainer_menyimpan_revisi_beruntun_dan_finalisasi_menbutuhkan_dua_file(): void
+    public function test_revisi_dikendalikan_admin_dan_finalisasi_menbutuhkan_acc_plus_dua_file(): void
     {
-        $user = User::factory()->create(['role' => User::ROLE_DESAINER]);
+        $desainer = User::factory()->create(['role' => User::ROLE_DESAINER]);
+        $admin = User::factory()->create(['role' => User::ROLE_ADMIN]);
         $item = $this->meteranItem();
 
-        $this->actingAs($user)
-            ->post(route('desainer.items.preview', $item), [
+        $this->actingAs($desainer)
+            ->post(route('desainer.orders.terima', $item->order))
+            ->assertRedirect();
+
+        $this->actingAs($desainer)
+            ->post(route('desainer.orders.preview', $item->order), [
                 'catatan_revisi' => 'Perbesar judul',
                 'file_preview' => UploadedFile::fake()->create('preview-1.png', 10, 'image/png'),
             ])
             ->assertRedirect();
 
-        $this->actingAs($user)
-            ->post(route('desainer.items.preview', $item), [
+        // Admin mengajukan revisi dengan catatan wajib.
+        $this->actingAs($admin)
+            ->post(route('admin.design-reviews.revisi', $item), [
+                'catatan_revisi' => 'Perbesar judul dan perbaiki kontras',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame(OrderItem::STATUS_REVISI, $item->fresh()->status_produksi);
+        $this->assertNull($item->fresh()->acc_admin_id);
+        $this->assertSame($admin->id, (int) $item->order->designRevisions()->whereNotNull('admin_id')->firstOrFail()->admin_id);
+
+        // Finalisasi tetap terkunci selama revisi pending.
+        $this->actingAs($desainer)
+            ->post(route('desainer.items.finalisasi', $item), [
+                'file_cetak_tiff' => UploadedFile::fake()->create('siap.tiff', 1, 'image/tiff'),
+                'file_master_arsip' => UploadedFile::fake()->create('master.cdr', 1),
+            ])
+            ->assertSessionHasErrors('file_cetak_tiff');
+
+        $this->actingAs($desainer)
+            ->post(route('desainer.orders.preview', $item->order), [
                 'catatan_revisi' => 'Ganti warna',
                 'file_preview' => UploadedFile::fake()->create('preview-2.png', 10, 'image/png'),
             ])
             ->assertRedirect();
 
-        $this->assertSame([1, 2], $item->designRevisions()->orderBy('revisi_ke')->pluck('revisi_ke')->all());
+        // Log: preview awal (1), revisi Admin (2), tanggapan desainer (3).
+        $this->assertSame([1, 2, 3], $item->order->designRevisions()->orderBy('revisi_ke')->pluck('revisi_ke')->all());
+        $this->assertFalse((bool) $item->order->designRevisions()->where('revisi_ke', 2)->firstOrFail()->isPending());
 
-        $this->actingAs($user)
-            ->post(route('desainer.items.finalisasi', $item), [
-                'file_cetak_tiff' => UploadedFile::fake()->create('siap.tiff', 1, 'image/tiff'),
-            ])
-            ->assertSessionHasErrors('file_master_arsip');
-
-        $this->assertSame(OrderItem::STATUS_MENUNGGU_ACC, $item->fresh()->status_produksi);
-
-        $this->actingAs($user)
-            ->post(route('desainer.items.finalisasi', $item), [
-                'file_cetak_tiff' => UploadedFile::fake()->create('siap.tiff', 1, 'image/tiff'),
-                'file_master_arsip' => UploadedFile::fake()->create('master.cdr', 1),
-            ])
+        $this->actingAs($admin)
+            ->post(route('admin.design-reviews.setujui', $item))
             ->assertRedirect();
 
+        $this->assertNotNull($item->fresh()->acc_admin_id);
+        $this->assertNotNull($item->fresh()->waktu_acc);
+
+        // TIFF tersimpan lebih dulu; master belum mengunci proses sebelum seluruh TIFF ada.
+        $this->actingAs($desainer)
+            ->post(route('desainer.items.finalisasi', $item), [
+                'file_cetak_tiff' => UploadedFile::fake()->create('siap.tiff', 1, 'image/tiff'),
+            ])
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+
+        $this->assertSame(OrderItem::STATUS_MENUNGGU_ACC, $item->fresh()->status_produksi);
+        $this->assertNotNull($item->fresh()->file_cetak_tiff);
+        $this->assertNull($item->fresh()->order->file_master_arsip);
+
+        $this->actingAs($desainer)
+            ->post(route('desainer.orders.master', $item->order), [
+                'file_master_arsip' => UploadedFile::fake()->create('master.cdr', 1),
+                'tanda_tangan' => 'Tanda Tangan Desainer',
+            ])
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+
         $item->refresh();
+        $item->load('order');
         $this->assertSame(OrderItem::STATUS_ANTREAN_CETAK, $item->status_produksi);
         $this->assertNotNull($item->file_cetak_tiff);
         $this->assertNotNull($item->file_master_arsip);
+        $this->assertSame('Tanda Tangan Desainer', $item->order->tanda_tangan_desainer);
+        $this->assertNotNull($item->order->waktu_terima_desain);
+        $this->assertNotNull($item->order->waktu_selesai_desain);
         Storage::disk(MediaStorage::DISK)->assertExists($item->file_master_arsip);
     }
 

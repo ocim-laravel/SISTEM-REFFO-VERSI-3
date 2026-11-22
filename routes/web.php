@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\OrderController;
+use App\Http\Controllers\Admin\DesignReviewController;
 use App\Http\Controllers\Admin\PelunasanController;
 use App\Http\Controllers\Advertising\SpkController;
 use App\Http\Controllers\Auth\LoginController;
@@ -38,6 +39,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 
     Route::get('/orders', [OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{order}/detail', [OrderDetailController::class, 'show'])->name('orders.show');
+    Route::get('/orders/{order}/items/{orderItem}', [OrderDetailController::class, 'showItem'])->name('orders.items.show');
     Route::get('/orders/create', [OrderController::class, 'create'])->name('orders.create');
     Route::post('/orders', [OrderController::class, 'store'])->name('orders.store');
     Route::get('/orders/{order}/summary', [OrderController::class, 'summary'])->name('orders.summary');
@@ -50,28 +52,41 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/orders/{order}/serah-terima', [SerahTerimaController::class, 'store'])->name('orders.serah-terima');
 
     Route::get('/customers/search', [OrderController::class, 'searchCustomers'])->name('customers.search');
+    Route::post('/instansis', [OrderController::class, 'storeInstansi'])->name('instansis.store');
+
+    Route::get('/design-reviews', [DesignReviewController::class, 'index'])->name('design-reviews.index');
+    Route::post('/design-reviews/{orderItem}/setujui', [DesignReviewController::class, 'setujui'])->name('design-reviews.setujui');
+    Route::post('/design-reviews/{orderItem}/revisi', [DesignReviewController::class, 'ajukanRevisi'])->name('design-reviews.revisi');
 });
 
 Route::middleware(['auth', 'role:desainer'])->prefix('desainer')->name('desainer.')->group(function () {
     Route::get('/dashboard', [DesignController::class, 'dashboard'])->name('dashboard');
     Route::get('/riwayat-selesai', [DesignController::class, 'riwayat'])->name('riwayat');
     Route::get('/orders/{order}/detail', [OrderDetailController::class, 'show'])->name('orders.show');
+    Route::get('/orders/{order}/items/{orderItem}', [OrderDetailController::class, 'showItem'])->name('orders.items.show');
+    Route::get('/orders/{order}/items', [DesignController::class, 'detailItem'])->name('orders.items');
 
     Route::get('/serah-terima', [SerahTerimaController::class, 'index'])->name('serah-terima.index');
     Route::get('/orders/{order}/serah-terima', [SerahTerimaController::class, 'create'])->name('orders.serah-terima.create');
     Route::post('/orders/{order}/serah-terima', [SerahTerimaController::class, 'store'])->name('orders.serah-terima');
 
-    Route::post('/items/{orderItem}/preview', [DesignController::class, 'uploadPreview'])->name('items.preview');
+    Route::post('/orders/{order}/terima', [DesignController::class, 'terimaJob'])->name('orders.terima');
+    Route::post('/orders/{order}/finalisasi', [DesignController::class, 'finalisasiBatch'])->name('orders.finalisasi');
+    Route::post('/orders/{order}/master', [DesignController::class, 'unggahMaster'])->name('orders.master');
+    Route::post('/orders/{order}/preview', [DesignController::class, 'uploadPreview'])->name('orders.preview');
+    Route::get('/orders/{order}/preview/{revisi}', [DesignController::class, 'unduhPreview'])->name('orders.preview.download');
     Route::post('/items/{orderItem}/finalisasi', [DesignController::class, 'finalisasi'])->name('items.finalisasi');
     Route::get('/items/{orderItem}/briefing', [DesignController::class, 'unduhBriefing'])->name('items.briefing');
-    Route::get('/items/{orderItem}/preview/{revisi}', [DesignController::class, 'unduhPreview'])->name('items.preview.download');
-    Route::get('/arsip/{orderItem}/unduh', [DesignController::class, 'unduhMaster'])->name('arsip.unduh');
+    Route::get('/items/{orderItem}/tiff', [DesignController::class, 'unduhTiff'])->name('items.tiff');
+    Route::get('/arsip/{orderItem}/unduh', [DesignController::class, 'unduhMasterItem'])->name('arsip.unduh');
+    Route::get('/arsip/order/{order}/unduh', [DesignController::class, 'unduhMaster'])->name('arsip.order.unduh');
 });
 
 Route::middleware(['auth', 'role:operator_cetak'])->prefix('operator')->name('operator.')->group(function () {
     Route::get('/dashboard', [ProductionController::class, 'dashboard'])->name('dashboard');
     Route::get('/riwayat-selesai', [ProductionController::class, 'riwayat'])->name('riwayat');
     Route::get('/orders/{order}/detail', [OrderDetailController::class, 'show'])->name('orders.show');
+    Route::get('/orders/{order}/items/{orderItem}', [OrderDetailController::class, 'showItem'])->name('orders.items.show');
 
     Route::get('/serah-terima', [SerahTerimaController::class, 'index'])->name('serah-terima.index');
     Route::get('/orders/{order}/serah-terima', [SerahTerimaController::class, 'create'])->name('orders.serah-terima.create');
@@ -87,6 +102,7 @@ Route::middleware(['auth', 'role:finishing'])->prefix('finishing')->name('finish
     Route::get('/dashboard', [FinishingController::class, 'dashboard'])->name('dashboard');
     Route::get('/riwayat-selesai', [FinishingController::class, 'riwayat'])->name('riwayat');
     Route::get('/orders/{order}/detail', [OrderDetailController::class, 'show'])->name('orders.show');
+    Route::get('/orders/{order}/items/{orderItem}', [OrderDetailController::class, 'showItem'])->name('orders.items.show');
 
     Route::get('/serah-terima', [SerahTerimaController::class, 'index'])->name('serah-terima.index');
     Route::get('/orders/{order}/serah-terima', [SerahTerimaController::class, 'create'])->name('orders.serah-terima.create');
@@ -99,6 +115,7 @@ Route::middleware(['auth', 'role:advertising'])->prefix('advertising')->name('ad
     Route::get('/dashboard', [SpkController::class, 'dashboard'])->name('dashboard');
     Route::get('/riwayat-selesai', [SpkController::class, 'riwayat'])->name('riwayat');
     Route::get('/orders/{order}/detail', [OrderDetailController::class, 'show'])->name('orders.show');
+    Route::get('/orders/{order}/items/{orderItem}', [OrderDetailController::class, 'showItem'])->name('orders.items.show');
 
     Route::get('/serah-terima', [SerahTerimaController::class, 'index'])->name('serah-terima.index');
     Route::get('/orders/{order}/serah-terima', [SerahTerimaController::class, 'create'])->name('orders.serah-terima.create');
@@ -111,6 +128,7 @@ Route::middleware(['auth', 'role:owner'])->prefix('owner')->name('owner.')->grou
     Route::get('/dashboard', [OwnerDashboardController::class, 'index'])->name('dashboard');
     Route::get('/rekap-orders', [OwnerDashboardController::class, 'rekapOrders'])->name('rekap-orders');
     Route::get('/orders/{order}/detail', [OrderDetailController::class, 'show'])->name('orders.show');
+    Route::get('/orders/{order}/items/{orderItem}', [OrderDetailController::class, 'showItem'])->name('orders.items.show');
     Route::get('/reports/materials', [MaterialReportController::class, 'index'])->name('reports.materials');
     Route::get('/reports/profit-loss', [ProfitLossController::class, 'index'])->name('reports.profit-loss');
 

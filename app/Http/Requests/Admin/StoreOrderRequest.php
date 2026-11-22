@@ -24,6 +24,7 @@ class StoreOrderRequest extends FormRequest
     {
         return [
             'customer_id' => ['nullable', 'integer', 'exists:customers,id'],
+            'instansi_id' => ['nullable', 'integer', 'exists:instansis,id'],
             'instansi' => ['nullable', 'string', 'max:255'],
             'nama_pelanggan' => ['required', 'string', 'max:255'],
             'no_wa' => ['required', 'string', 'max:30'],
@@ -31,6 +32,7 @@ class StoreOrderRequest extends FormRequest
             'alamat' => ['nullable', 'string', 'max:1000'],
 
             'items' => ['required', 'array', 'min:1', 'max:50'],
+            'items.*.nama_item' => ['nullable', 'string', 'max:255'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:9999'],
             'items.*.lebar_m' => ['nullable', 'numeric', 'gt:0', 'max:9999'],

@@ -6,6 +6,7 @@ use App\Models\AdvertisingSpk;
 use App\Models\Customer;
 use App\Models\DesignRevision;
 use App\Models\Finishing;
+use App\Models\Instansi;
 use App\Models\MaterialLog;
 use App\Models\MaterialOffcut;
 use App\Models\MaterialRoll;
@@ -20,11 +21,19 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ComprehensiveSeeder extends Seeder
 {
     use WithoutModelEvents;
+
+    /**
+     * Sumber berkas uji opsional. Bila folder tidak ada, seeder memakai
+     * placeholder teks seperti sebelumnya agar seeding tetap berjalan.
+     */
+    private const SUMBER_BERKAS_UJI = 'C:\\Users\\ASUS\\Downloads\\test';
 
     /**
      * Status yang hanya boleh dicapai setelah desainer mengunggah
@@ -40,7 +49,8 @@ class ComprehensiveSeeder extends Seeder
     ];
 
     /**
-     * Jalankan seeder komprehensif secara idempotent.
+     * Jalankan seeder komprehensif. Data order lama selalu dibersihkan lebih
+     * dulu agar hasil uji tidak menumpuk dan nomor nota tetap deterministik.
      */
     public function run(): void
     {
@@ -54,7 +64,13 @@ class ComprehensiveSeeder extends Seeder
             MaterialRollSeeder::class,
         ]);
 
-        DB::transaction(function (): void {
+        // Berkas disiapkan di luar transaksi database agar kegagalan salin
+        // tidak menahan koneksi MySQL.
+        $berkasUji = $this->siapkanBerkasUji();
+
+        DB::transaction(function () use ($berkasUji): void {
+            $this->hapusDataOrder();
+
             $customers = $this->seedCustomers();
             $products = $this->seedProducts();
             $finishings = Finishing::query()->get()->keyBy('id');
@@ -66,9 +82,113 @@ class ComprehensiveSeeder extends Seeder
                 ->where('role', User::ROLE_ADMIN)
                 ->firstOrFail();
 
-            $this->seedOrders($customers, $products, $finishings, $rolls, $offcuts, $admin);
+            $this->seedOrders($customers, $products, $finishings, $rolls, $offcuts, $admin, $berkasUji);
             $this->seedOperationalExpenses();
         });
+
+        $this->command?->info(sprintf(
+            'ComprehensiveSeeder: %d order, %d item, %d SPK, %d log bahan, %d revisi.',
+            Order::query()->count(),
+            OrderItem::query()->count(),
+            AdvertisingSpk::query()->count(),
+            MaterialLog::query()->count(),
+            DesignRevision::query()->count(),
+        ));
+    }
+
+    /**
+     * Hapus seluruh data order beserta turunannya. Urutan mengikuti foreign
+     * key: anak dulu, induk terakhir.
+     */
+    private function hapusDataOrder(): void
+    {
+        DB::table('material_logs')->delete();
+        DB::table('design_revisions')->delete();
+        DB::table('advertising_spks')->delete();
+        DB::table('order_items')->delete();
+        DB::table('orders')->delete();
+    }
+
+    /**
+     * Salin berkas uji dari folder Downloads ke disk media_sistem sesuai
+     * subfolder masing-masing. Nama tujuan dibuat unik dan deterministik.
+     *
+     * @return array<string, array<int, string>>
+     */
+    private function siapkanBerkasUji(): array
+    {
+        $hasil = [
+            MediaStorage::FOLDER_BRIEFING_DESAIN => [],
+            MediaStorage::FOLDER_PREVIEW_ACC => [],
+            MediaStorage::FOLDER_FILE_CETAK_TIFF => [],
+            MediaStorage::FOLDER_FILE_MASTER_ARSIP => [],
+        ];
+
+        if (! File::isDirectory(self::SUMBER_BERKAS_UJI)) {
+            return $hasil;
+        }
+
+        MediaStorage::ensureDirectories();
+        $disk = Storage::disk(MediaStorage::DISK);
+        $urut = 0;
+
+        foreach (File::allFiles(self::SUMBER_BERKAS_UJI) as $file) {
+            $tujuanFolder = $this->folderBerkasUji($file->getFilename());
+
+            if ($tujuanFolder === null) {
+                continue;
+            }
+
+            $urut++;
+            $ekstensi = strtolower($file->getExtension());
+            $namaDasar = Str::slug($file->getFilenameWithoutExtension()) ?: 'berkas';
+            $tujuan = sprintf(
+                '%s/uji-%03d-%s.%s',
+                $tujuanFolder,
+                $urut,
+                Str::limit($namaDasar, 80, ''),
+                $ekstensi,
+            );
+
+            if (! $disk->exists($tujuan)) {
+                $disk->put($tujuan, File::get($file->getPathname()));
+            }
+
+            $hasil[$tujuanFolder][] = $tujuan;
+        }
+
+        return $hasil;
+    }
+
+    /**
+     * Tentukan subfolder media berdasarkan ekstensi/nama berkas sumber.
+     */
+    private function folderBerkasUji(string $namaFile): ?string
+    {
+        $ekstensi = strtolower(pathinfo($namaFile, PATHINFO_EXTENSION));
+        $nama = strtolower(pathinfo($namaFile, PATHINFO_FILENAME));
+
+        return match (true) {
+            in_array($ekstensi, ['tif', 'tiff'], true) => MediaStorage::FOLDER_FILE_CETAK_TIFF,
+            in_array($ekstensi, ['cdr', 'psd', 'ai', 'zip'], true) => MediaStorage::FOLDER_FILE_MASTER_ARSIP,
+            str_contains($nama, 'revision') || str_contains($nama, 'revisi') => MediaStorage::FOLDER_PREVIEW_ACC,
+            in_array($ekstensi, ['png', 'jpg', 'jpeg', 'webp'], true) => MediaStorage::FOLDER_BRIEFING_DESAIN,
+            default => null,
+        };
+    }
+
+    /**
+     * Ambil berkas dari pool secara bergiliran; null bila pool kosong.
+     *
+     * @param  array<int, string>  $daftar
+     */
+    private function ambilBerkas(array $daftar, int $indeks): ?string
+    {
+        if ($daftar === []) {
+            return null;
+        }
+
+        return $daftar[$indeks % count($daftar)];
     }
 
     /**
@@ -102,6 +222,10 @@ class ComprehensiveSeeder extends Seeder
             'Diskominfo Kota Bandung' => ['Nani Suryani', 'Adang Saputra', 'Idris Maulana'],
         ];
 
+        foreach (array_merge([Customer::INSTANSI_DEFAULT], array_keys($instansi)) as $namaInstansi) {
+            Instansi::query()->firstOrCreate(['nama_instansi' => $namaInstansi]);
+        }
+
         $kategoriPribadi = [
             Customer::KATEGORI_UMUM,
             Customer::KATEGORI_UMUM,
@@ -121,6 +245,7 @@ class ComprehensiveSeeder extends Seeder
                 'nama_pelanggan' => $nama,
             ];
             $atribut = [
+                'instansi_id' => Instansi::query()->where('nama_instansi', Customer::INSTANSI_DEFAULT)->value('id'),
                 'no_wa' => sprintf('0857%08d', 20000001 + $index),
                 'kategori' => $kategoriPribadi[$index % count($kategoriPribadi)],
                 'alamat' => sprintf(
@@ -133,7 +258,7 @@ class ComprehensiveSeeder extends Seeder
 
             Customer::updateOrCreate(
                 $kunci,
-                $ini ? $ini->only(['instansi', 'nama_pelanggan', 'no_wa', 'kategori', 'alamat']) : $atribut,
+                $ini ? $ini->only(['instansi', 'instansi_id', 'nama_pelanggan', 'no_wa', 'kategori', 'alamat']) : $atribut,
             );
         }
 
@@ -146,6 +271,7 @@ class ComprehensiveSeeder extends Seeder
                     'nama_pelanggan' => $pic,
                 ];
                 $atribut = [
+                    'instansi_id' => Instansi::query()->where('nama_instansi', $namaInstansi)->value('id'),
                     'no_wa' => sprintf('0812%08d', 40000001 + $index),
                     'kategori' => $index % 3 === 0
                         ? Customer::KATEGORI_UMUM
@@ -156,7 +282,7 @@ class ComprehensiveSeeder extends Seeder
 
                 Customer::updateOrCreate(
                     $kunci,
-                    $ini ? $ini->only(['instansi', 'nama_pelanggan', 'no_wa', 'kategori', 'alamat']) : $atribut,
+                    $ini ? $ini->only(['instansi', 'instansi_id', 'nama_pelanggan', 'no_wa', 'kategori', 'alamat']) : $atribut,
                 );
             }
         }
@@ -284,6 +410,7 @@ class ComprehensiveSeeder extends Seeder
      *
      * @param  Collection<int|string, Product>  $products
      * @param  Collection<int|string, Finishing>  $finishings
+     * @param  array<string, array<int, string>>  $berkasUji
      */
     private function seedOrders(
         Collection $customers,
@@ -292,6 +419,7 @@ class ComprehensiveSeeder extends Seeder
         Collection $rolls,
         Collection $offcuts,
         User $admin,
+        array $berkasUji,
     ): void {
         $meteran = $products->where('kategori_produk', Product::KATEGORI_METERAN)->values();
         $satuan = $products->where('kategori_produk', Product::KATEGORI_SATUAN)->values();
@@ -309,6 +437,7 @@ class ComprehensiveSeeder extends Seeder
             OrderItem::STATUS_MENUNGGU_DESAIN,
             OrderItem::STATUS_PROSES_DESAIN,
             OrderItem::STATUS_MENUNGGU_ACC,
+            OrderItem::STATUS_REVISI,
             OrderItem::STATUS_ANTREAN_CETAK,
             OrderItem::STATUS_PROSES_CETAK,
             OrderItem::STATUS_ANTREAN_FINISHING,
@@ -349,6 +478,7 @@ class ComprehensiveSeeder extends Seeder
                         $finishings,
                         $ukuranMeteran,
                         $daftarStatus,
+                        $berkasUji,
                     );
 
                     // Total tagihan hanya dari item cetak. SPK advertising Fase 1 non-billing.
@@ -359,6 +489,34 @@ class ComprehensiveSeeder extends Seeder
                     $statusDesain = $semuaPascaDesain
                         ? Order::STATUS_DESAIN_SIAP_CETAK_TIFF
                         : ($i % 3 === 0 ? Order::STATUS_DESAIN_CORETAN_KERTAS : Order::STATUS_DESAIN_FILE_MENTAH);
+
+                    // Satu master arsip untuk seluruh nota; TIFF tetap per item.
+                    // Berkas asli dipakai lebih dulu, placeholder hanya cadangan.
+                    $fileMaster = null;
+                    if ($semuaPascaDesain) {
+                        $fileMaster = $this->ambilBerkas(
+                            $berkasUji[MediaStorage::FOLDER_FILE_MASTER_ARSIP],
+                            $i - 1,
+                        );
+
+                        if ($fileMaster === null) {
+                            $ekstensiArsip = ['cdr', 'psd', 'ai', 'zip'][$i % 4];
+                            $fileMaster = MediaStorage::FOLDER_FILE_MASTER_ARSIP
+                                .'/COMP-'.sprintf('%04d', $i).'-master.'.$ekstensiArsip;
+                            $this->letakkanPlaceholder($fileMaster, 'Placeholder master arsip nota '.$i.'.');
+                        }
+
+                        $itemData = array_map(
+                            fn (array $barisItem): array => array_merge($barisItem, ['file_master_arsip' => $fileMaster]),
+                            $itemData,
+                        );
+                    }
+
+                    // Briefing desain memakai foto asli dari folder uji bila ada.
+                    $lampiranBriefing = $this->ambilBerkas(
+                        $berkasUji[MediaStorage::FOLDER_BRIEFING_DESAIN],
+                        $i - 1,
+                    );
 
                     $statusBayar = match (true) {
                         $i % 5 === 0 => Order::STATUS_BAYAR_LUNAS,
@@ -380,7 +538,8 @@ class ComprehensiveSeeder extends Seeder
                         'status_bayar' => $statusBayar,
                         'status_desain' => $statusDesain,
                         'catatan_desain' => $catatanDesain[$i % count($catatanDesain)],
-                        'lampiran_briefing' => null,
+                        'lampiran_briefing' => $lampiranBriefing,
+                        'file_master_arsip' => $fileMaster,
                         'deadline' => $createdAt->copy()->addDays(2 + ($i % 14)),
                     ];
                     $notaLama = Order::query()->where($kunciNota)->first();
@@ -389,7 +548,7 @@ class ComprehensiveSeeder extends Seeder
                         $atributNota = $notaLama->only([
                             'customer_id', 'user_id', 'total_tagihan', 'jumlah_dp',
                             'status_bayar', 'status_desain', 'catatan_desain',
-                            'lampiran_briefing', 'deadline',
+                            'lampiran_briefing', 'file_master_arsip', 'deadline',
                         ]);
                     }
 
@@ -406,9 +565,25 @@ class ComprehensiveSeeder extends Seeder
                     $this->simpanSpkCampuran($order, $i, $instansi);
 
                     foreach ($itemData as $barisItem) {
-                        $item = $this->simpanItem($order, $barisItem);
-                        $this->simpanRevisiDesain($item, $i);
+                        $item = $this->simpanItem($order, $barisItem, $admin, $i);
+                        $this->simpanRevisiDesain(
+                            $item,
+                            $i,
+                            $admin,
+                            $berkasUji[MediaStorage::FOLDER_PREVIEW_ACC],
+                        );
                         $this->simpanLogBahan($item, $i, $rolls, $offcuts, $finishings);
+                    }
+
+                    if ($semuaPascaDesain && $notaLama === null) {
+                        $desainer = User::query()->where('role', User::ROLE_DESAINER)->orderBy('id')->first();
+                        $order->update([
+                            'designer_id' => $desainer?->id,
+                            'waktu_terima_desain' => $createdAt->copy()->subHours(3),
+                            'waktu_selesai_desain' => $createdAt->copy()->subMinutes(45),
+                            'tanda_tangan_desainer' => 'Desainer Reffo',
+                            'tanda_tangan_admin' => 'Admin Reffo',
+                        ]);
                     }
                 }
             }
@@ -423,6 +598,7 @@ class ComprehensiveSeeder extends Seeder
      * @param  Collection<int|string, Finishing>  $finishings
      * @param  array<int, array{0:string,1:string}>  $ukuranMeteran
      * @param  array<int, string>  $daftarStatus
+     * @param  array<string, array<int, string>>  $berkasUji
      * @return array<int, array<string, mixed>>
      */
     private function buatItemCampuran(
@@ -433,8 +609,13 @@ class ComprehensiveSeeder extends Seeder
         Collection $finishings,
         array $ukuranMeteran,
         array $daftarStatus,
+        array $berkasUji,
     ): array {
         $items = [];
+
+        // Sebagian nota sengaja sudah melewati desain sepenuhnya agar
+        // file master arsip (satu per nota) ikut terisi.
+        $semuaPascaDesain = $i % 4 === 0;
 
         for ($j = 0; $j < 6; $j++) {
             /** @var Product $produk */
@@ -447,9 +628,11 @@ class ComprehensiveSeeder extends Seeder
             $finishingId = ($j % 2 === 0 && $finishings->isNotEmpty())
                 ? $finishings->values()[($i + $j) % $finishings->count()]->id
                 : null;
-            $status = $daftarStatus[($i + $j) % count($daftarStatus)];
+            $status = $semuaPascaDesain
+                ? self::STATUS_PASCA_DESAIN[($i + $j) % count(self::STATUS_PASCA_DESAIN)]
+                : $daftarStatus[($i + $j) % count($daftarStatus)];
 
-            $items[] = $this->hitungItem($i, $j, $produk, $finishingId, $lebar, $tinggi, $qty, $luasTagihan, $harga, $status);
+            $items[] = $this->hitungItem($i, $j, $produk, $finishingId, $lebar, $tinggi, $qty, $luasTagihan, $harga, $status, $berkasUji);
         }
 
         for ($j = 0; $j < 4; $j++) {
@@ -457,10 +640,12 @@ class ComprehensiveSeeder extends Seeder
             $produk = $satuan[($i + $j) % $satuan->count()];
             $qty = 1 + (($i + $j) % 5);
             $harga = $produk->hargaUntukKategori($customer->kategori);
-            $status = $daftarStatus[($i + 6 + $j) % count($daftarStatus)];
+            $status = $semuaPascaDesain
+                ? self::STATUS_PASCA_DESAIN[($i + 6 + $j) % count(self::STATUS_PASCA_DESAIN)]
+                : $daftarStatus[($i + 6 + $j) % count($daftarStatus)];
 
             // Produk satuan: tanpa finishing, tanpa luas meteran.
-            $items[] = $this->hitungItem($i, 6 + $j, $produk, null, null, null, $qty, null, $harga, $status);
+            $items[] = $this->hitungItem($i, 6 + $j, $produk, null, null, null, $qty, null, $harga, $status, $berkasUji);
         }
 
         return $items;
@@ -469,6 +654,7 @@ class ComprehensiveSeeder extends Seeder
     /**
      * Hitung baris item sebelum nota dibuat.
      *
+     * @param  array<string, array<int, string>>  $berkasUji
      * @return array{product_id: int, qty: int, lebar_m: string|null, tinggi_m: string|null, finishing_id: int|null, luas_tagihan_m2: string|null, harga_satuan_dipakai: string, subtotal: float, status_produksi: string, file_preview_acc: string|null, file_cetak_tiff: string|null, file_master_arsip: string|null}
      */
     private function hitungItem(
@@ -482,27 +668,42 @@ class ComprehensiveSeeder extends Seeder
         ?float $luasTagihan,
         float $harga,
         string $status,
+        array $berkasUji,
     ): array {
         $pascaDesain = in_array($status, self::STATUS_PASCA_DESAIN, true);
-        $ekstensiArsip = ['cdr', 'psd', 'ai', 'zip'][$i % 4];
         $awalFile = sprintf('COMP-%04d-%d', $i, $j + 1);
-        $fileCetak = $pascaDesain
-            ? MediaStorage::FOLDER_FILE_CETAK_TIFF.'/'.$awalFile.'.tiff'
-            : null;
-        $fileMaster = $pascaDesain
-            ? MediaStorage::FOLDER_FILE_MASTER_ARSIP.'/'.$awalFile.'.'.$ekstensiArsip
-            : null;
-        $filePreview = $status === OrderItem::STATUS_MENUNGGU_ACC
-            ? MediaStorage::FOLDER_PREVIEW_ACC.'/'.$awalFile.'.png'
-            : null;
+        $indeksBerkas = $i * 10 + $j;
 
-        if ($fileCetak !== null && $fileMaster !== null) {
-            $this->letakkanPlaceholder($fileCetak, 'Placeholder file siap cetak '.$awalFile.'.');
-            $this->letakkanPlaceholder($fileMaster, 'Placeholder file master arsip '.$awalFile.'.');
+        // File siap cetak memakai TIFF asli bila tersedia.
+        $fileCetak = null;
+        if ($pascaDesain) {
+            $fileCetak = $this->ambilBerkas(
+                $berkasUji[MediaStorage::FOLDER_FILE_CETAK_TIFF],
+                $indeksBerkas,
+            );
+
+            if ($fileCetak === null) {
+                $fileCetak = MediaStorage::FOLDER_FILE_CETAK_TIFF.'/'.$awalFile.'.tiff';
+                $this->letakkanPlaceholder($fileCetak, 'Placeholder file siap cetak '.$awalFile.'.');
+            }
         }
-        if ($filePreview !== null) {
-            $this->letakkanPlaceholder($filePreview, 'Placeholder preview ACC '.$awalFile.'.');
+
+        // Preview ACC memakai gambar asli bila tersedia.
+        $filePreview = null;
+        if (in_array($status, [OrderItem::STATUS_MENUNGGU_ACC, OrderItem::STATUS_REVISI], true)) {
+            $filePreview = $this->ambilBerkas(
+                $berkasUji[MediaStorage::FOLDER_PREVIEW_ACC],
+                $indeksBerkas,
+            );
+
+            if ($filePreview === null) {
+                $filePreview = MediaStorage::FOLDER_PREVIEW_ACC.'/'.$awalFile.'.png';
+                $this->letakkanPlaceholder($filePreview, 'Placeholder preview ACC '.$awalFile.'.');
+            }
         }
+
+        // Master arsip diisi sekali per nota di seedOrders().
+        $fileMaster = null;
 
         $subtotal = $luasTagihan !== null
             ? round($harga * $luasTagihan, 2)
@@ -527,7 +728,7 @@ class ComprehensiveSeeder extends Seeder
     /**
      * @param  array<string, mixed>  $data
      */
-    private function simpanItem(Order $order, array $data): OrderItem
+    private function simpanItem(Order $order, array $data, User $admin, int $i): OrderItem
     {
         $kunci = [
             'order_id' => $order->id,
@@ -536,22 +737,35 @@ class ComprehensiveSeeder extends Seeder
             'lebar_m' => $data['lebar_m'],
             'tinggi_m' => $data['tinggi_m'],
         ];
+
+        $status = $data['status_produksi'];
+        $butuhAcc = in_array($status, array_merge(
+            [OrderItem::STATUS_MENUNGGU_ACC, OrderItem::STATUS_REVISI],
+            self::STATUS_PASCA_DESAIN,
+        ), true);
+        $waktuAcc = $butuhAcc
+            ? $order->created_at?->copy()->addHours(2 + ($i % 6))
+            : null;
+
         $atribut = [
             'finishing_id' => $data['finishing_id'],
             'luas_tagihan_m2' => $data['luas_tagihan_m2'],
             'harga_satuan_dipakai' => $data['harga_satuan_dipakai'],
             'subtotal' => $this->dec($data['subtotal']),
-            'status_produksi' => $data['status_produksi'],
+            'status_produksi' => $status,
+            'acc_admin_id' => $butuhAcc ? $admin->id : null,
+            'waktu_acc' => $waktuAcc,
             'file_preview_acc' => $data['file_preview_acc'],
             'file_cetak_tiff' => $data['file_cetak_tiff'],
             'file_master_arsip' => $data['file_master_arsip'],
         ];
         $itemLama = OrderItem::query()->where($kunci)->first();
         if ($itemLama !== null) {
+            // Idempotent: jangan timpa ACC maupun berkas yang sudah diisi pengguna.
             $atribut = $itemLama->only([
                 'finishing_id', 'luas_tagihan_m2', 'harga_satuan_dipakai',
-                'subtotal', 'status_produksi', 'file_preview_acc',
-                'file_cetak_tiff', 'file_master_arsip',
+                'subtotal', 'status_produksi', 'acc_admin_id', 'waktu_acc',
+                'file_preview_acc', 'file_cetak_tiff', 'file_master_arsip',
             ]);
         }
 
@@ -610,10 +824,13 @@ class ComprehensiveSeeder extends Seeder
         $this->simpanSpkCampuran($order, $i, $order->customer?->instansi ?? Customer::INSTANSI_DEFAULT);
     }
 
-    private function simpanRevisiDesain(OrderItem $item, int $i): void
+    /**
+     * @param  array<int, string>  $berkasPreview
+     */
+    private function simpanRevisiDesain(OrderItem $item, int $i, User $admin, array $berkasPreview = []): void
     {
         $perluRevisi = in_array($item->status_produksi, array_merge(
-            [OrderItem::STATUS_MENUNGGU_ACC],
+            [OrderItem::STATUS_MENUNGGU_ACC, OrderItem::STATUS_REVISI],
             self::STATUS_PASCA_DESAIN,
         ), true);
 
@@ -629,17 +846,35 @@ class ComprehensiveSeeder extends Seeder
                 'order_item_id' => $item->id,
                 'revisi_ke' => $revisi,
             ];
-            $path = MediaStorage::FOLDER_PREVIEW_ACC.'/revision-'.$item->id.'-'.$revisi.'.png';
-            $this->letakkanPlaceholder($path, 'Placeholder revisi '.$revisi.' item '.$item->id.'.');
+
+            // Item berstatus revisi memiliki permintaan Admin yang belum dijawab desainer.
+            $statusRevisi = $item->status_produksi === OrderItem::STATUS_REVISI && $revisi === $jumlah
+                ? DesignRevision::STATUS_MENUNGGU
+                : DesignRevision::STATUS_SELESAI;
+            $path = null;
+
+            if ($statusRevisi !== DesignRevision::STATUS_MENUNGGU) {
+                $path = $this->ambilBerkas($berkasPreview, $item->id + $revisi);
+
+                if ($path === null) {
+                    $path = MediaStorage::FOLDER_PREVIEW_ACC.'/revision-'.$item->id.'-'.$revisi.'.png';
+                    $this->letakkanPlaceholder($path, 'Placeholder revisi '.$revisi.' item '.$item->id.'.');
+                }
+            }
+
             $atribut = [
                 'catatan_revisi' => $catatan[($i + $revisi) % count($catatan)],
                 'file_preview' => $path,
+                'admin_id' => $admin->id,
+                'status_revisi' => $statusRevisi,
             ];
             $revisiLama = DesignRevision::query()->where($kunci)->first();
 
             DesignRevision::updateOrCreate(
                 $kunci,
-                $revisiLama ? $revisiLama->only(['catatan_revisi', 'file_preview']) : $atribut,
+                $revisiLama
+                    ? $revisiLama->only(['catatan_revisi', 'file_preview', 'admin_id', 'status_revisi'])
+                    : $atribut,
             );
         }
     }

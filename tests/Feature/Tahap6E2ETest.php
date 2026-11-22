@@ -103,24 +103,39 @@ class Tahap6E2ETest extends TestCase
         $spk = $order->advertisingSpks()->firstOrFail();
         $this->assertSame(AdvertisingSpk::STATUS_ANTREAN, $spk->status_lapangan);
 
-        // 2. DESAINER — revisi ACC, kunci dua file wajib, lalu kirim ke cetak.
+        // 2. DESAINER — terima job, preview, ACC Admin, kunci dua file wajib, lalu kirim ke cetak.
         $this->actingAs($desainer)
-            ->post(route('desainer.items.preview', $itemMeteran), [
-                'catatan_revisi' => 'ACC tata letak',
-                'file_preview' => UploadedFile::fake()->create('preview.png', 10, 'image/png'),
-            ])
-            ->assertRedirect();
-        $this->assertSame(1, $itemMeteran->designRevisions()->count());
+            ->post(route('desainer.orders.terima', $order))
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
 
         $this->actingAs($desainer)
-            ->post(route('desainer.items.finalisasi', $itemMeteran), [
-                'file_cetak_tiff' => UploadedFile::fake()->create('meteran.tiff', 1, 'image/tiff'),
+            ->post(route('desainer.orders.preview', $order), [
+                'catatan_revisi' => 'ACC tata letak',
+                'file_preview' => UploadedFile::fake()->create('preview-order.png', 10, 'image/png'),
             ])
-            ->assertSessionHasErrors('file_master_arsip');
-        $this->assertSame(OrderItem::STATUS_MENUNGGU_ACC, $itemMeteran->fresh()->status_produksi);
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+        $this->assertSame(1, $order->fresh()->designRevisions()->count());
+
+        foreach ([$itemMeteran, $itemSatuan] as $item) {
+            $this->actingAs($admin)
+                ->post(route('admin.design-reviews.setujui', $item))
+                ->assertRedirect()
+                ->assertSessionDoesntHaveErrors();
+        }
 
         $this->finalisasiDesain($desainer, $itemMeteran, 'meteran');
         $this->finalisasiDesain($desainer, $itemSatuan, 'poster');
+
+        $this->actingAs($desainer)
+            ->post(route('desainer.orders.master', $order), [
+                'file_master_arsip' => UploadedFile::fake()->create('master-nota.cdr', 1),
+                'tanda_tangan' => 'Desainer E2E',
+            ])
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
+
         $this->assertSame(OrderItem::STATUS_ANTREAN_CETAK, $itemMeteran->fresh()->status_produksi);
         $this->assertSame(OrderItem::STATUS_ANTREAN_CETAK, $itemSatuan->fresh()->status_produksi);
         Storage::disk(MediaStorage::DISK)->assertExists($itemMeteran->fresh()->file_cetak_tiff);
@@ -334,8 +349,8 @@ class Tahap6E2ETest extends TestCase
         $this->actingAs($desainer)
             ->post(route('desainer.items.finalisasi', $item), [
                 'file_cetak_tiff' => UploadedFile::fake()->create($nama.'-siap.tiff', 1, 'image/tiff'),
-                'file_master_arsip' => UploadedFile::fake()->create($nama.'-master.cdr', 1),
             ])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionDoesntHaveErrors();
     }
 }

@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\StoreOrderRequest;
 use App\Models\AdvertisingSpk;
 use App\Models\Customer;
 use App\Models\Finishing;
+use App\Models\Instansi;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Product;
@@ -19,6 +20,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
@@ -92,10 +94,23 @@ class OrderController extends Controller
             ->orderBy('nama_finishing')
             ->get(['id', 'nama_finishing']);
 
+        $instansis = Instansi::query()
+            ->orderBy('nama_instansi')
+            ->get(['id', 'nama_instansi']);
+
+        $oldInstansiId = old('instansi_id');
+
+        if (! $oldInstansiId && old('instansi')) {
+            $oldInstansiId = Instansi::query()
+                ->where('nama_instansi', old('instansi'))
+                ->value('id');
+        }
+
         $oldItems = old('items');
 
         if (! is_array($oldItems) || $oldItems === []) {
             $oldItems = [[
+                'nama_item' => '',
                 'product_id' => '',
                 'qty' => 1,
                 'lebar_m' => '',
@@ -118,9 +133,14 @@ class OrderController extends Controller
                 'id' => $finishing->id,
                 'nama_finishing' => $finishing->nama_finishing,
             ])->values(),
+            'instansis' => $instansis->map(fn (Instansi $instansi): array => [
+                'id' => $instansi->id,
+                'nama_instansi' => $instansi->nama_instansi,
+            ])->values(),
             'items' => $oldItems,
             'customerId' => old('customer_id'),
             'customer' => [
+                'instansi_id' => $oldInstansiId,
                 'instansi' => old('instansi', ''),
                 'nama_pelanggan' => old('nama_pelanggan', ''),
                 'no_wa' => old('no_wa', ''),
@@ -138,6 +158,7 @@ class OrderController extends Controller
                 'catatan_teknis' => old('spk_catatan_teknis', ''),
             ],
             'searchUrl' => route('admin.customers.search'),
+            'instansiStoreUrl' => route('admin.instansis.store'),
         ];
 
         return view('admin.orders.create', [
@@ -149,18 +170,21 @@ class OrderController extends Controller
 
     public function searchCustomers(Request $request): JsonResponse
     {
-        $term = trim((string) $request->query('q', ''));
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:255'],
+            'instansi_id' => ['nullable', 'integer', 'exists:instansis,id'],
+        ]);
 
-        if (mb_strlen($term) < 2) {
+        $term = trim((string) ($validated['q'] ?? ''));
+        $instansiId = ! empty($validated['instansi_id']) ? (int) $validated['instansi_id'] : null;
+
+        if (mb_strlen($term) < 2 || $instansiId === null) {
             return response()->json([]);
         }
 
         $customers = Customer::query()
-            ->where(function (Builder $query) use ($term): void {
-                $query->where('nama_pelanggan', 'like', "%{$term}%")
-                    ->orWhere('instansi', 'like', "%{$term}%");
-            })
-            ->orderBy('instansi')
+            ->where('instansi_id', $instansiId)
+            ->where('nama_pelanggan', 'like', "%{$term}%")
             ->orderBy('nama_pelanggan')
             ->limit(10)
             ->get();
@@ -168,6 +192,7 @@ class OrderController extends Controller
         return response()->json(
             $customers->map(fn (Customer $customer): array => [
                 'id' => $customer->id,
+                'instansi_id' => $customer->instansi_id,
                 'instansi' => $customer->instansi,
                 'nama_pelanggan' => $customer->nama_pelanggan,
                 'no_wa' => $customer->no_wa,
@@ -175,6 +200,25 @@ class OrderController extends Controller
                 'alamat' => $customer->alamat,
             ])->all(),
         );
+    }
+
+    /**
+     * Tambah instansi baru dari dropdown form order Admin.
+     */
+    public function storeInstansi(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'nama_instansi' => ['required', 'string', 'max:255', Rule::unique('instansis', 'nama_instansi')],
+        ]);
+
+        $instansi = Instansi::query()->create([
+            'nama_instansi' => trim($validated['nama_instansi']),
+        ]);
+
+        return response()->json([
+            'id' => $instansi->id,
+            'nama_instansi' => $instansi->nama_instansi,
+        ], 201);
     }
 
     public function store(StoreOrderRequest $request): RedirectResponse
@@ -221,7 +265,10 @@ class OrderController extends Controller
 
                 $totalTagihan += $subtotal;
 
+                $namaItem = trim((string) ($item['nama_item'] ?? ''));
+
                 $baris[] = [
+                    'nama_item' => $namaItem !== '' ? $namaItem : null,
                     'product_id' => $product->id,
                     'finishing_id' => $finishingId,
                     'lebar_m' => $lebar,
@@ -313,13 +360,18 @@ class OrderController extends Controller
      */
     private function resolveCustomer(array $data): Customer
     {
-        $namaInstansi = trim((string) ($data['instansi'] ?? ''));
+        $instansi = null;
 
-        if ($namaInstansi === '') {
-            $namaInstansi = Customer::INSTANSI_DEFAULT;
+        if (! empty($data['instansi_id'])) {
+            $instansi = Instansi::query()->findOrFail((int) $data['instansi_id']);
         }
 
+        $namaInstansi = $instansi?->nama_instansi
+            ?: trim((string) ($data['instansi'] ?? ''))
+            ?: Instansi::DEFAULT;
+
         $atribut = [
+            'instansi_id' => $instansi?->id,
             'instansi' => $namaInstansi,
             'nama_pelanggan' => trim($data['nama_pelanggan']),
             'no_wa' => trim($data['no_wa']),
@@ -334,10 +386,15 @@ class OrderController extends Controller
             return $customer;
         }
 
-        $customer = Customer::query()
+        $query = Customer::query()
             ->where('nama_pelanggan', $atribut['nama_pelanggan'])
-            ->where('instansi', $namaInstansi)
-            ->first();
+            ->where('instansi', $namaInstansi);
+
+        if ($instansi !== null) {
+            $query->where('instansi_id', $instansi->id);
+        }
+
+        $customer = $query->first();
 
         if (! $customer) {
             return Customer::query()->create($atribut);

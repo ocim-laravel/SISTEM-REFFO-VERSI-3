@@ -14,12 +14,18 @@ use Illuminate\Support\Facades\Storage;
     'no_nota',
     'customer_id',
     'user_id',
+    'designer_id',
     'total_tagihan',
     'jumlah_dp',
     'status_bayar',
     'status_desain',
     'catatan_desain',
     'lampiran_briefing',
+    'file_master_arsip',
+    'waktu_terima_desain',
+    'waktu_selesai_desain',
+    'tanda_tangan_desainer',
+    'tanda_tangan_admin',
     'bukti_pelunasan',
     'foto_serah_terima',
     'nama_pengambil',
@@ -93,6 +99,8 @@ class Order extends Model
             'total_tagihan' => 'decimal:2',
             'jumlah_dp' => 'decimal:2',
             'waktu_serah_terima' => 'datetime',
+            'waktu_terima_desain' => 'datetime',
+            'waktu_selesai_desain' => 'datetime',
             'deadline' => 'datetime',
         ];
     }
@@ -107,9 +115,31 @@ class Order extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function designer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'designer_id');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(OrderItem::class);
+    }
+
+    /**
+     * Log preview dan revisi level order (satu preview per nota).
+     */
+    public function designRevisions(): HasMany
+    {
+        return $this->hasMany(DesignRevision::class);
+    }
+
+    /**
+     * Revisi Admin yang belum dijawab desainer pada nota ini.
+     */
+    public function revisiPending(): bool
+    {
+        return $this->designRevisions
+            ->contains(fn (DesignRevision $revision): bool => $revision->isPending());
     }
 
     public function advertisingSpks(): HasMany
@@ -165,6 +195,36 @@ class Order extends Model
         return 'Beragam ('.$statusUnik->count().' status)';
     }
 
+    /**
+     * Nota sudah diambil alih desainer (atau item sudah bergerak dari antrean awal).
+     */
+    public function diterimaDesainer(): bool
+    {
+        return filled($this->designer_id)
+            || $this->items->contains(
+                fn (OrderItem $item): bool => $item->status_produksi !== OrderItem::STATUS_MENUNGGU_DESAIN,
+            );
+    }
+
+    /**
+     * Progres desain nota (0-100) dari rata-rata progres seluruh item.
+     * Pastikan relasi items sudah dimuat sebelum memanggil method ini.
+     */
+    public function progresDesainPersen(): int
+    {
+        if ($this->items->isEmpty()) {
+            return 0;
+        }
+
+        if ($this->desainSelesai()) {
+            return 100;
+        }
+
+        return (int) round(
+            $this->items->avg(fn (OrderItem $item): int => $item->progresDesainPersen()),
+        );
+    }
+
     public function statusBayarLabel(): string
     {
         return self::LABEL_STATUS_BAYAR[$this->status_bayar] ?? $this->status_bayar;
@@ -173,6 +233,48 @@ class Order extends Model
     public function statusDesainLabel(): string
     {
         return self::LABEL_STATUS_DESAIN[$this->status_desain] ?? $this->status_desain;
+    }
+
+    /**
+     * Desain selesai hanya bila master nota terisi dan seluruh item memiliki TIFF.
+     * Pastikan relasi items sudah dimuat sebelum memanggil method ini.
+     */
+    public function desainSelesai(): bool
+    {
+        return filled($this->file_master_arsip)
+            && $this->items->isNotEmpty()
+            && $this->items->every(fn (OrderItem $item): bool => filled($item->file_cetak_tiff));
+    }
+
+    /**
+     * Lama proses sejak desainer menerima job sampai seluruh berkas terunggah.
+     */
+    public function durasiProsesDesain(bool $sampaiSekarang = false): ?string
+    {
+        if (! $this->waktu_terima_desain) {
+            return null;
+        }
+
+        if (! $this->waktu_selesai_desain && ! $sampaiSekarang) {
+            return null;
+        }
+
+        $selisih = $this->waktu_terima_desain->diff($this->waktu_selesai_desain ?? now());
+        $bagian = [];
+
+        if ($selisih->d > 0) {
+            $bagian[] = $selisih->d.' hari';
+        }
+
+        if ($selisih->h > 0) {
+            $bagian[] = $selisih->h.' jam';
+        }
+
+        if ($selisih->i > 0) {
+            $bagian[] = $selisih->i.' menit';
+        }
+
+        return $bagian === [] ? '< 1 menit' : implode(' ', $bagian);
     }
 
     public function lampiranBriefingUrl(): ?string
